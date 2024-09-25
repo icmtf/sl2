@@ -1,0 +1,62 @@
+version: '3.8'
+
+services:
+  streamlit:
+    build:
+      context: ./streamlit
+      args:
+        REGISTRY: ${REGISTRY:-}
+    ports:
+      - "8501:8501"
+    environment:
+      - FASTAPI_URL=http://fastapi:8000
+      - REDIS_URL=redis://redis:6379
+    depends_on:
+      - fastapi
+      - redis
+    networks:
+      - sl_network
+
+  fastapi:
+    build:
+      context: ./fastapi
+      args:
+        REGISTRY: ${REGISTRY:-}
+    ports:
+      - "8000:8000"
+    environment:
+      - REDIS_URL=redis://redis:6379
+    depends_on:
+      - redis
+    networks:
+      - sl_network
+
+  redis:
+    image: ${REGISTRY:-}redis:6
+    ports:
+      - "6379:6379"
+    volumes:
+      - ./redis/redis.conf:/usr/local/etc/redis/redis.conf
+    command: redis-server /usr/local/etc/redis/redis.conf
+    networks:
+      - sl_network
+
+  python_worker:
+    build:
+      context: ./python_worker
+      args:
+        REGISTRY: ${REGISTRY:-}
+    environment:
+      - REDIS_URL=redis://redis:6379
+      - S3_ENDPOINT=${S3_ENDPOINT}
+      - S3_BUCKET=${S3_BUCKET}
+      - S3_KEY=${S3_KEY}
+      - S3_SECRET=${S3_SECRET}
+    depends_on:
+      - redis
+    networks:
+      - sl_network
+
+networks:
+  sl_network:
+    external: true

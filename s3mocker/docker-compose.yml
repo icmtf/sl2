@@ -1,0 +1,18 @@
+services:
+  s3mock:
+    image: adobe/s3mock:latest
+    environment:
+      - debug=true
+      - retainFilesOnExit=true
+      - root=containers3root
+    ports:
+      - 9090:9090
+      - 9191:9191
+    volumes:
+      - ./locals3root:/containers3root
+    networks:
+      - sl_network
+
+networks:
+  sl_network:
+    external: true

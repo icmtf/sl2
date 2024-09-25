@@ -1,0 +1,187 @@
+import streamlit as st
+import pandas as pd
+import requests
+import os
+import json
+import redis
+from datetime import datetime
+
+# FastAPI endpoint URL
+FASTAPI_URL = os.getenv('FASTAPI_URL', 'http://fastapi:8000')
+REDIS_URL = os.getenv('REDIS_URL', 'redis://redis:6379')
+
+# Initialize Redis client
+redis_client = redis.Redis.from_url(REDIS_URL)
+
+st.title("EasyNet Dashboard")
+
+# Fetch data from FastAPI
+@st.cache_data(ttl=30)  # Cache the data for 30 seconds
+def fetch_data():
+    response = requests.get(f"{FASTAPI_URL}/get_easynet_devices")
+    if response.status_code == 200:
+        return response.json()['devices']
+    else:
+        st.error(f"Failed to fetch data: {response.status_code}")
+        return []
+
+# Fetch S3 backups data from Redis
+def fetch_s3_data():
+    s3_list_data = redis_client.get("s3_list")
+    if s3_list_data:
+        return json.loads(s3_list_data)
+    return []
+
+# Sidebar for navigation
+page = st.sidebar.selectbox("Choose a page", ["EasyNet Devices", "S3 Backups"])
+
+if page == "EasyNet Devices":
+    st.header("EasyNet Devices")
+
+    data = fetch_data()
+    s3_data = fetch_s3_data()
+
+    if data:
+        # Convert the data to a pandas DataFrame
+        df = pd.DataFrame(data)
+
+        # Add 'Facts' column based on S3 data
+        facts_status = {path.split('/')[2]: True for path in s3_data if path.startswith('backups/') and path.endswith('facts.json')}
+        df['Facts'] = df['hostname'].map(lambda x: facts_status.get(x, False))
+
+        # Display the total number of devices
+        st.write(f"Total number of devices: {len(df)}")
+
+        # Define default columns
+        default_columns = ['hostname', 'ip', 'vendor', 'country', 'site', 'device_class']
+
+        # Ensure all default columns exist in the dataframe
+        default_columns = [col for col in default_columns if col in df.columns]
+
+        # Allow users to select columns to display, with default columns pre-selected
+        all_columns = df.columns.tolist()
+        selected_columns = st.multiselect(
+            "Select columns to display",
+            all_columns,
+            default=default_columns
+        )
+
+        # Display the table with selected columns
+        if selected_columns:
+            st.dataframe(df[selected_columns])
+        else:
+            st.warning("Please select at least one column to display the data.")
+
+        # Add filters
+        st.subheader("Filters")
+        
+        # Filter by vendor
+        vendors = sorted([v for v in df['vendor'].unique() if pd.notna(v)])
+        selected_vendor = st.multiselect("Filter by vendor", vendors)
+        
+        # Filter by country
+        countries = sorted([c for c in df['country'].unique() if pd.notna(c)])
+        selected_country = st.multiselect("Filter by country", countries)
+        
+        # Filter by Facts status
+        facts_status = st.radio("Filter by Facts status", ["All", "With Facts", "Without Facts"])
+
+        # Apply filters
+        filtered_df = df.copy()
+        if selected_vendor:
+            filtered_df = filtered_df[filtered_df['vendor'].isin(selected_vendor)]
+        if selected_country:
+            filtered_df = filtered_df[filtered_df['country'].isin(selected_country)]
+        if facts_status == "With Facts":
+            filtered_df = filtered_df[filtered_df['Facts'] == True]
+        elif facts_status == "Without Facts":
+            filtered_df = filtered_df[filtered_df['Facts'] == False]
+
+        # Display filtered results
+        st.subheader("Filtered Results")
+        if selected_columns:
+            st.dataframe(filtered_df[selected_columns])
+        else:
+            st.dataframe(filtered_df)
+
+        # Add a download button for filtered results
+        csv = filtered_df.to_csv(index=False)
+        st.download_button(
+            label="Download filtered data as CSV",
+            data=csv,
+            file_name="filtered_easynet_devices.csv",
+            mime="text/csv",
+        )
+
+        # Display warning for missing data
+        if df['vendor'].isna().any() or df['country'].isna().any():
+            st.warning("Some devices have missing vendor or country information.")
+    else:
+        st.write("No data available")
+
+elif page == "S3 Backups":
+    st.header("S3 Backups")
+
+    # Fetch S3 backups data from Redis
+    s3_list_data = redis_client.get("s3_list")
+    
+    if s3_list_data:
+        s3_list = json.loads(s3_list_data)
+        
+        # Filter paths to include only those starting with 'backups/'
+        backups_paths = [path for path in s3_list if path.startswith('backups/')]
+        
+        if backups_paths:
+            # Prepare data for DataFrame
+            backups_list = [{"Full Path": path} for path in backups_paths]
+
+            # Convert to DataFrame
+            df = pd.DataFrame(backups_list)
+            
+            # Display the total number of backup files
+            st.write(f"Total number of backup files: {len(df)}")
+            
+            # Display the table
+            st.dataframe(df)
+            
+            # Add filters
+            st.subheader("Filters")
+            
+            # Filter by vendor (first subfolder after 'backups/')
+            vendors = sorted(set(path.split('/')[1] for path in backups_paths))
+            selected_vendor = st.selectbox("Filter by vendor", ['All'] + vendors)
+            
+            # Filter by device (second subfolder, if exists)
+            devices = sorted(set(path.split('/')[2] for path in backups_paths if len(path.split('/')) > 2))
+            selected_device = st.selectbox("Filter by device", ['All'] + devices)
+            
+            # Filter by file type
+            file_types = sorted(set(path.split('.')[-1] for path in backups_paths if '.' in path))
+            selected_file_type = st.selectbox("Filter by file type", ['All'] + file_types)
+            
+            # Apply filters
+            filtered_paths = backups_paths
+            if selected_vendor != 'All':
+                filtered_paths = [path for path in filtered_paths if path.split('/')[1] == selected_vendor]
+            if selected_device != 'All':
+                filtered_paths = [path for path in filtered_paths if len(path.split('/')) > 2 and path.split('/')[2] == selected_device]
+            if selected_file_type != 'All':
+                filtered_paths = [path for path in filtered_paths if path.endswith(f".{selected_file_type}")]
+            
+            # Display filtered results
+            st.subheader("Filtered Results")
+            filtered_df = pd.DataFrame({"Full Path": filtered_paths})
+            st.dataframe(filtered_df)
+            
+            # Add a download button for filtered results
+            filtered_csv = filtered_df.to_csv(index=False)
+            st.download_button(
+                label="Download filtered S3 backups list as CSV",
+                data=filtered_csv,
+                file_name="filtered_s3_backups.csv",
+                mime="text/csv",
+            )
+        else:
+            st.write("No backup files found in the 'backups/' directory")
+    else:
+        st.write("No S3 backups list available in Redis")

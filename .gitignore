@@ -1,0 +1,17 @@
+# Ignore all dotenv-files.
+.env*
+# Keep dotenv example.
+!.env.example
+# Keep S3 dotenv example.
+!.env.s3.example
+
+# Local S3Mock storage.
+locals3root/
+
+# Ignore Config Loader's default settings.yaml file.
+settings.yaml
+!settings.yaml.example
+
+# MacOS metadata file.
+.DS_Store
+data.json
