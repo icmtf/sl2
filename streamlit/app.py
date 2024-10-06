@@ -46,7 +46,11 @@ if page == "EasyNet Devices":
         df = pd.DataFrame(data)
 
         # Add 'Facts' column based on S3 data
-        facts_status = {path.split('/')[2]: True for path in s3_data if path.startswith('backups/') and path.endswith('facts.json')}
+        facts_status = {
+            path['name'].split('/')[2]: True 
+            for path in s3_data 
+            if path['name'].startswith('backups/') and path['name'].endswith('facts.json')
+        }
         df['Facts'] = df['hostname'].map(lambda x: facts_status.get(x, False))
 
         # Display the total number of devices
@@ -121,67 +125,54 @@ if page == "EasyNet Devices":
 
 elif page == "S3 Backups":
     st.header("S3 Backups")
-
-    # Fetch S3 backups data from Redis
-    s3_list_data = redis_client.get("s3_list")
+    s3_data = fetch_s3_data()
     
-    if s3_list_data:
-        s3_list = json.loads(s3_list_data)
+    if s3_data:
+        # Convert the list of dictionaries to a DataFrame
+        df = pd.DataFrame(s3_data)
         
-        # Filter paths to include only those starting with 'backups/'
-        backups_paths = [path for path in s3_list if path.startswith('backups/')]
+        # Display the total number of backup files
+        st.write(f"Total number of backup files: {len(df)}")
         
-        if backups_paths:
-            # Prepare data for DataFrame
-            backups_list = [{"Full Path": path} for path in backups_paths]
-
-            # Convert to DataFrame
-            df = pd.DataFrame(backups_list)
-            
-            # Display the total number of backup files
-            st.write(f"Total number of backup files: {len(df)}")
-            
-            # Display the table
-            st.dataframe(df)
-            
-            # Add filters
-            st.subheader("Filters")
-            
-            # Filter by vendor (first subfolder after 'backups/')
-            vendors = sorted(set(path.split('/')[1] for path in backups_paths))
-            selected_vendor = st.selectbox("Filter by vendor", ['All'] + vendors)
-            
-            # Filter by device (second subfolder, if exists)
-            devices = sorted(set(path.split('/')[2] for path in backups_paths if len(path.split('/')) > 2))
-            selected_device = st.selectbox("Filter by device", ['All'] + devices)
-            
-            # Filter by file type
-            file_types = sorted(set(path.split('.')[-1] for path in backups_paths if '.' in path))
-            selected_file_type = st.selectbox("Filter by file type", ['All'] + file_types)
-            
-            # Apply filters
-            filtered_paths = backups_paths
-            if selected_vendor != 'All':
-                filtered_paths = [path for path in filtered_paths if path.split('/')[1] == selected_vendor]
-            if selected_device != 'All':
-                filtered_paths = [path for path in filtered_paths if len(path.split('/')) > 2 and path.split('/')[2] == selected_device]
-            if selected_file_type != 'All':
-                filtered_paths = [path for path in filtered_paths if path.endswith(f".{selected_file_type}")]
-            
-            # Display filtered results
-            st.subheader("Filtered Results")
-            filtered_df = pd.DataFrame({"Full Path": filtered_paths})
-            st.dataframe(filtered_df)
-            
-            # Add a download button for filtered results
-            filtered_csv = filtered_df.to_csv(index=False)
-            st.download_button(
-                label="Download filtered S3 backups list as CSV",
-                data=filtered_csv,
-                file_name="filtered_s3_backups.csv",
-                mime="text/csv",
-            )
-        else:
-            st.write("No backup files found in the 'backups/' directory")
+        # Display the table
+        st.dataframe(df)
+        
+        # Add filters
+        st.subheader("Filters")
+        
+        # Filter by vendor (first subfolder after 'backups/')
+        vendors = sorted(set(path['name'].split('/')[1] for path in s3_data if len(path['name'].split('/')) > 2))
+        selected_vendor = st.selectbox("Filter by vendor", ['All'] + vendors)
+        
+        # Filter by device (second subfolder, if exists)
+        devices = sorted(set(path['name'].split('/')[2] for path in s3_data if len(path['name'].split('/')) > 3))
+        selected_device = st.selectbox("Filter by device", ['All'] + devices)
+        
+        # Filter by file type
+        file_types = sorted(set(path['name'].split('.')[-1] for path in s3_data if '.' in path['name']))
+        selected_file_type = st.selectbox("Filter by file type", ['All'] + file_types)
+        
+        # Apply filters
+        filtered_data = s3_data
+        if selected_vendor != 'All':
+            filtered_data = [path for path in filtered_data if path['name'].split('/')[1] == selected_vendor]
+        if selected_device != 'All':
+            filtered_data = [path for path in filtered_data if len(path['name'].split('/')) > 3 and path['name'].split('/')[2] == selected_device]
+        if selected_file_type != 'All':
+            filtered_data = [path for path in filtered_data if path['name'].endswith(f".{selected_file_type}")]
+        
+        # Display filtered results
+        st.subheader("Filtered Results")
+        filtered_df = pd.DataFrame(filtered_data)
+        st.dataframe(filtered_df)
+        
+        # Add a download button for filtered results
+        csv = filtered_df.to_csv(index=False)
+        st.download_button(
+            label="Download filtered S3 backups list as CSV",
+            data=csv,
+            file_name="filtered_s3_backups.csv",
+            mime="text/csv",
+        )
     else:
-        st.write("No S3 backups list available in Redis")
+        st.write("No S3 backups data available")

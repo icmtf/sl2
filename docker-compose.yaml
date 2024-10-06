@@ -41,9 +41,10 @@ services:
     networks:
       - sl_network
 
-  python_worker:
+  s3_worker:
     build:
-      context: ./python_worker
+      context: ./python_workers
+      dockerfile: s3_worker/Dockerfile
       args:
         REGISTRY: ${REGISTRY:-}
     environment:
@@ -52,6 +53,22 @@ services:
       - S3_BUCKET=${S3_BUCKET}
       - S3_KEY=${S3_KEY}
       - S3_SECRET=${S3_SECRET}
+    depends_on:
+      - redis
+    networks:
+      - sl_network
+
+  easynet_worker:
+    build:
+      context: ./python_workers
+      dockerfile: easynet_worker/Dockerfile
+      args:
+        REGISTRY: ${REGISTRY:-}
+    environment:
+      - REDIS_URL=redis://redis:6379
+      - EASYNET_KEY=${EASYNET_KEY}
+      - EASYNET_SECRET=${EASYNET_SECRET}
+      - ENVIRONMENT=${ENVIRONMENT:-local}
     depends_on:
       - redis
     networks:

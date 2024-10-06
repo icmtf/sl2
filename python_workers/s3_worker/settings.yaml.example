@@ -1,0 +1,6 @@
+S3_ENDPOINT: "http://s3mock:9090"
+S3_BUCKET: "s3-bucket"
+S3_KEY: "test"
+S3_SECRET: "test"
+S3_USE_SSL: true
+S3_VERIFY" "bundle.crt"

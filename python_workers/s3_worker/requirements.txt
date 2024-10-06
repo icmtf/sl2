@@ -1,6 +1,4 @@
-requests
 redis
 boto3
 python-dotenv
-pyaml
-asyncio
+PyYAML
