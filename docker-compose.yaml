@@ -1,19 +1,19 @@
-version: '3.8'
-
 services:
   streamlit:
     build:
       context: ./streamlit
       args:
         REGISTRY: ${REGISTRY:-}
-    ports:
-      - "8501:8501"
+    expose:
+      - "8501"
     environment:
       - FASTAPI_URL=http://fastapi:8000
       - REDIS_URL=redis://redis:6379
+      - OTEL_EXPORTER_OTLP_ENDPOINT=http://jaeger:4317
     depends_on:
       - fastapi
       - redis
+      - jaeger
     networks:
       - sl_network
 
@@ -26,8 +26,10 @@ services:
       - "8000:8000"
     environment:
       - REDIS_URL=redis://redis:6379
+      - OTEL_EXPORTER_OTLP_ENDPOINT=http://jaeger:4317
     depends_on:
       - redis
+      - jaeger
     networks:
       - sl_network
 
@@ -53,8 +55,10 @@ services:
       - S3_BUCKET=${S3_BUCKET}
       - S3_KEY=${S3_KEY}
       - S3_SECRET=${S3_SECRET}
+      - OTEL_EXPORTER_OTLP_ENDPOINT=http://jaeger:4317
     depends_on:
       - redis
+      - jaeger
     networks:
       - sl_network
 
@@ -66,13 +70,48 @@ services:
         REGISTRY: ${REGISTRY:-}
     environment:
       - REDIS_URL=redis://redis:6379
-      - EASYNET_KEY=${EASYNET_KEY}
-      - EASYNET_SECRET=${EASYNET_SECRET}
-      - ENVIRONMENT=${ENVIRONMENT:-local}
+      # - ENVIRONMENT=${ENVIRONMENT:-local}
+      - OTEL_EXPORTER_OTLP_ENDPOINT=http://jaeger:4317
     depends_on:
       - redis
+      - jaeger
     networks:
       - sl_network
+
+  jaeger:
+    image: ${REGISTRY:-}jaegertracing/all-in-one:latest
+    ports:
+      - "16686:16686"  # Jaeger UI
+      - "6831:6831/udp"  # Jaeger agent
+    networks:
+      - sl_network
+
+  nginx_reverse_proxy:
+    build:
+      context: ./nginx_reverse_proxy
+      args:
+        REGISTRY: ${REGISTRY:-}
+    ports:
+      - "8501:80"
+    volumes:
+      - ./docs:/usr/share/nginx/html:ro
+    depends_on:
+      - mkdocs
+      - streamlit
+    networks:
+      - sl_network
+
+  mkdocs:
+    build:
+      context: ./mkdocs
+      args:
+        REGISTRY: ${REGISTRY:-}
+    volumes:
+      - ./mkdocs:/docs
+      - ./docs:/output
+    networks:
+      - sl_network
+
 
 networks:
   sl_network:

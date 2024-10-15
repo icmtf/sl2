@@ -12,6 +12,9 @@ locals3root/
 settings.yaml
 !settings.yaml.example
 
+# Ignore the generated documentation.
+/docs/
+
 # MacOS metadata file.
 .DS_Store
 data.json

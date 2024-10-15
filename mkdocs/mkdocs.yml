@@ -1,0 +1,17 @@
+site_name: Project Documentation
+theme:
+  name: material
+  features:
+    - content.code.annotate
+docs_dir: doc_files
+site_dir: /output
+nav:
+  - Home: index.md
+  - About: about.md
+  - Architecture: architecture.md
+markdown_extensions:
+  - pymdownx.superfences:
+      custom_fences:
+        - name: mermaid
+          class: mermaid
+          format: !!python/name:pymdownx.superfences.fence_code_format
