@@ -44,37 +44,31 @@ def fetch_data():
             st.error(f"Failed to fetch data: {response.status_code}")
             return []
 
-# Fetch S3 backups data from Redis
-def fetch_s3_data():
-    with tracer.start_as_current_span("fetch_s3_data"):
-        s3_list_data = redis_client.get("s3_list")
-        if s3_list_data:
-            return json.loads(s3_list_data)
-        return []
+# Fetch devices backup status from FastAPI
+@st.cache_data(ttl=30)
+def fetch_devices_backup_status():
+    with tracer.start_as_current_span("fetch_devices_backup_status"):
+        response = requests.get(f"{FASTAPI_URL}/get_devices_backup_status")
+        if response.status_code == 200:
+            return response.json()['devices']
+        else:
+            st.error(f"Failed to fetch data: {response.status_code}")
+            return []
 
 # Main application logic
 with tracer.start_as_current_span("main_app"):
     # Sidebar for navigation
-    page = st.sidebar.selectbox("Choose a page", ["EasyNet Devices", "S3 Backups"])
+    page = st.sidebar.selectbox("Choose a page", ["EasyNet Devices", "Backup Status"])
 
     if page == "EasyNet Devices":
         st.header("EasyNet Devices")
 
         with tracer.start_as_current_span("process_easynet_devices"):
             data = fetch_data()
-            s3_data = fetch_s3_data()
 
             if data:
                 # Convert the data to a pandas DataFrame
                 df = pd.DataFrame(data)
-
-                # Add 'Facts' column based on S3 data
-                facts_status = {
-                    path['name'].split('/')[2]: True 
-                    for path in s3_data 
-                    if path['name'].startswith('backups/') and path['name'].endswith('facts.json')
-                }
-                df['Facts'] = df['hostname'].map(lambda x: facts_status.get(x, False))
 
                 # Display the total number of devices
                 st.write(f"Total number of devices: {len(df)}")
@@ -109,9 +103,6 @@ with tracer.start_as_current_span("main_app"):
                 # Filter by country
                 countries = sorted([c for c in df['country'].unique() if pd.notna(c)])
                 selected_country = st.multiselect("Filter by country", countries)
-                
-                # Filter by Facts status
-                facts_status = st.radio("Filter by Facts status", ["All", "With Facts", "Without Facts"])
 
                 # Apply filters
                 filtered_df = df.copy()
@@ -119,10 +110,6 @@ with tracer.start_as_current_span("main_app"):
                     filtered_df = filtered_df[filtered_df['vendor'].isin(selected_vendor)]
                 if selected_country:
                     filtered_df = filtered_df[filtered_df['country'].isin(selected_country)]
-                if facts_status == "With Facts":
-                    filtered_df = filtered_df[filtered_df['Facts'] == True]
-                elif facts_status == "Without Facts":
-                    filtered_df = filtered_df[filtered_df['Facts'] == False]
 
                 # Display filtered results
                 st.subheader("Filtered Results")
@@ -146,18 +133,18 @@ with tracer.start_as_current_span("main_app"):
             else:
                 st.write("No data available")
 
-    elif page == "S3 Backups":
-        st.header("S3 Backups")
+    elif page == "Backup Status":
+        st.header("Backup Status")
         
-        with tracer.start_as_current_span("process_s3_backups"):
-            s3_data = fetch_s3_data()
+        with tracer.start_as_current_span("process_backup_status"):
+            devices_data = fetch_devices_backup_status()
             
-            if s3_data:
-                # Convert the list of dictionaries to a DataFrame
-                df = pd.DataFrame(s3_data)
+            if devices_data:
+                # Convert the data to a pandas DataFrame
+                df = pd.DataFrame(devices_data)
                 
-                # Display the total number of backup files
-                st.write(f"Total number of backup files: {len(df)}")
+                # Display the total number of devices
+                st.write(f"Total number of devices: {len(df)}")
                 
                 # Display the table
                 st.dataframe(df)
@@ -165,39 +152,48 @@ with tracer.start_as_current_span("main_app"):
                 # Add filters
                 st.subheader("Filters")
                 
-                # Filter by vendor (first subfolder after 'backups/')
-                vendors = sorted(set(path['name'].split('/')[1] for path in s3_data if len(path['name'].split('/')) > 2))
-                selected_vendor = st.selectbox("Filter by vendor", ['All'] + vendors)
+                # Filter by vendor
+                vendors = sorted(df['vendor'].unique())
+                selected_vendor = st.multiselect("Filter by vendor", vendors)
                 
-                # Filter by device (second subfolder, if exists)
-                devices = sorted(set(path['name'].split('/')[2] for path in s3_data if len(path['name'].split('/')) > 3))
-                selected_device = st.selectbox("Filter by device", ['All'] + devices)
+                # Filter by device class
+                device_classes = sorted(df['device_class'].unique())
+                selected_device_class = st.multiselect("Filter by device class", device_classes)
                 
-                # Filter by file type
-                file_types = sorted(set(path['name'].split('.')[-1] for path in s3_data if '.' in path['name']))
-                selected_file_type = st.selectbox("Filter by file type", ['All'] + file_types)
+                # Filter by backup status
+                backup_status = st.radio("Filter by backup status", ["All", "With Backup", "Without Backup"])
+                
+                # Filter by schema status
+                schema_status = st.radio("Filter by schema status", ["All", "Valid Schema", "Invalid Schema", "No Schema"])
                 
                 # Apply filters
-                filtered_data = s3_data
-                if selected_vendor != 'All':
-                    filtered_data = [path for path in filtered_data if path['name'].split('/')[1] == selected_vendor]
-                if selected_device != 'All':
-                    filtered_data = [path for path in filtered_data if len(path['name'].split('/')) > 3 and path['name'].split('/')[2] == selected_device]
-                if selected_file_type != 'All':
-                    filtered_data = [path for path in filtered_data if path['name'].endswith(f".{selected_file_type}")]
+                filtered_df = df.copy()
+                if selected_vendor:
+                    filtered_df = filtered_df[filtered_df['vendor'].isin(selected_vendor)]
+                if selected_device_class:
+                    filtered_df = filtered_df[filtered_df['device_class'].isin(selected_device_class)]
+                if backup_status == "With Backup":
+                    filtered_df = filtered_df[filtered_df['backup_json'] == True]
+                elif backup_status == "Without Backup":
+                    filtered_df = filtered_df[filtered_df['backup_json'] == False]
+                if schema_status == "Valid Schema":
+                    filtered_df = filtered_df[filtered_df['valid_schema'] == True]
+                elif schema_status == "Invalid Schema":
+                    filtered_df = filtered_df[filtered_df['valid_schema'] == False]
+                elif schema_status == "No Schema":
+                    filtered_df = filtered_df[filtered_df['schema'] == False]
                 
                 # Display filtered results
                 st.subheader("Filtered Results")
-                filtered_df = pd.DataFrame(filtered_data)
                 st.dataframe(filtered_df)
                 
                 # Add a download button for filtered results
                 csv = filtered_df.to_csv(index=False)
                 st.download_button(
-                    label="Download filtered S3 backups list as CSV",
+                    label="Download filtered data as CSV",
                     data=csv,
-                    file_name="filtered_s3_backups.csv",
+                    file_name="filtered_devices_backup_status.csv",
                     mime="text/csv",
                 )
             else:
-                st.write("No S3 backups data available")
+                st.write("No data available")

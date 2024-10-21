@@ -4,3 +4,4 @@ S3_KEY: "test"
 S3_SECRET: "test"
 S3_USE_SSL: true
 S3_VERIFY" "bundle.crt"
+S3_BACKUPS_ROOT_DIR: "inetportalNG"

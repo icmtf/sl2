@@ -11,9 +11,9 @@ from opentelemetry.sdk.trace import TracerProvider
 from opentelemetry.sdk.trace.export import BatchSpanProcessor
 from opentelemetry.sdk.resources import Resource
 from opentelemetry.instrumentation.botocore import BotocoreInstrumentor
+from jsonschema import validate, ValidationError
 
 from pyinet.common.config_loader import ConfigLoader
-from pyinet.common.easynet import EasyNet
 
 # Initialize OpenTelemetry
 resource = Resource.create({"service.name": "s3-worker"})
@@ -33,7 +33,7 @@ tracer = trace.get_tracer(__name__)
 load_dotenv()
 
 # Load configuration
-required_keys = ["S3_ENDPOINT", "S3_BUCKET", "S3_KEY", "S3_SECRET"]
+required_keys = ["S3_ENDPOINT", "S3_BUCKET", "S3_KEY", "S3_SECRET", "S3_BACKUPS_ROOT_DIR"]
 config_loader = ConfigLoader(required_keys=required_keys, yaml_path='settings.yaml', env="prd")
 config = config_loader.get_config()
 
@@ -57,47 +57,80 @@ client_kwargs = {
 # Initialize S3 client
 s3_client = boto3.client(**client_kwargs)
 
-def get_s3_backups_list():
-    with tracer.start_as_current_span("get_s3_backups_list"):
+def get_s3_file_content(key):
+    with tracer.start_as_current_span("get_s3_file_content"):
+        try:
+            response = s3_client.get_object(Bucket=config['S3_BUCKET'], Key=key)
+            return json.loads(response['Body'].read().decode('utf-8'))
+        except Exception as e:
+            return None
+
+def get_s3_backups_data():
+    with tracer.start_as_current_span("get_s3_backups_data"):
         try:
             response = s3_client.list_objects_v2(
                 Bucket=config['S3_BUCKET'],
-                Prefix='backups/'
+                Prefix=f"{config['S3_BACKUPS_ROOT_DIR']}/"
             )
             
-            # Filter results to get only filenames (without full path)
-            files = []
-            for obj in response.get('Contents', []):
-                with tracer.start_as_current_span("process_s3_object"):
-                    key = obj['Key']
-                    if key != 'backups/':  # Skip the directory itself
-                        files.append({
-                            'name': key,
-                            'size': obj['Size'],
-                            'last_modified': obj['LastModified'].isoformat()
-                        })
+            backups = {}
+            templates = {}
             
-            return files
-        except ClientError as e:
-            with tracer.start_as_current_span("s3_client_error"):
-                print(f"Error getting S3 backups list: {e}")
-                return []
+            # First, find all template.json files
+            for obj in response.get('Contents', []):
+                key = obj['Key']
+                parts = key.split('/')
+                if len(parts) == 4 and parts[-1] == 'template.json':
+                    device_class, vendor = parts[1:3]
+                    template_data = get_s3_file_content(key)
+                    if template_data:
+                        templates[f"{device_class}/{vendor}"] = template_data
+            
+            # Now process backup.json files
+            for obj in response.get('Contents', []):
+                key = obj['Key']
+                parts = key.split('/')
+                if len(parts) == 5 and parts[-1] == 'backup.json':
+                    device_class, vendor, hostname = parts[1:4]
+                    backup_data = get_s3_file_content(key)
+                    if backup_data:
+                        template_key = f"{device_class}/{vendor}"
+                        has_schema = template_key in templates
+                        backups[hostname] = {
+                            'device_class': device_class,
+                            'vendor': vendor,
+                            'has_backup': True,
+                            'backup.json_s3_date': obj['LastModified'].isoformat(),
+                            'backup_data': backup_data,
+                            'schema': has_schema,
+                            'valid_schema': None
+                        }
+                        
+                        # Validate against template
+                        if has_schema:
+                            try:
+                                validate(instance=backup_data, schema=templates[template_key])
+                                backups[hostname]['valid_schema'] = True
+                            except ValidationError:
+                                backups[hostname]['valid_schema'] = False
+            
+            return backups
+        except ClientError:
+            return {}
 
 def store_s3_data_in_redis(s3_backups):
     with tracer.start_as_current_span("store_s3_data_in_redis"):
         try:
-            redis_client.set("s3_list", json.dumps(s3_backups))
-            print(f"Stored {len(s3_backups)} S3 backup files in Redis")
-        except redis.RedisError as e:
-            print(f"Error storing S3 data in Redis: {e}")
+            redis_client.set("s3_backups", json.dumps(s3_backups))
+        except redis.RedisError:
+            pass
 
 def main():
     while True:
         with tracer.start_as_current_span("s3_worker_main_loop"):
-            print("S3 task is running...")
-            s3_backups = get_s3_backups_list()
+            s3_backups = get_s3_backups_data()
             store_s3_data_in_redis(s3_backups)
-            time.sleep(60)  # Run every 60 seconds
+            time.sleep(600)  # Run every 10 minutes
 
 if __name__ == "__main__":
     main()

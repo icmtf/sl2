@@ -39,23 +39,23 @@ config = config_loader.get_config()
 # Initialize Redis client
 redis_client = redis.Redis.from_url(os.getenv('REDIS_URL', 'redis://redis:6379'))
 
-# Initialize EasyNet client
-easynet = EasyNet(
-    apigee_base_uri=config['APIGEE_BASE_URI'],
-    apigee_token_endpoint=config['APIGEE_TOKEN_ENDPOINT'],
-    apigee_easynet_endpoint=config['APIGEE_EASYNET_ENDPOINT'],
-    apigee_certificate=config['APIGEE_CERTIFICATE'],
-    apigee_key=config['APIGEE_KEY'],
-    easynet_key=config['EASYNET_KEY'],
-    easynet_secret=config['EASYNET_SECRET'],
-    ca_requests_bundle=config.get('BNPP_CA_BUNDLE')
-)
+# # Initialize EasyNet client
+# easynet = EasyNet(
+#     apigee_base_uri=config['APIGEE_BASE_URI'],
+#     apigee_token_endpoint=config['APIGEE_TOKEN_ENDPOINT'],
+#     apigee_easynet_endpoint=config['APIGEE_EASYNET_ENDPOINT'],
+#     apigee_certificate=config['APIGEE_CERTIFICATE'],
+#     apigee_key=config['APIGEE_KEY'],
+#     easynet_key=config['EASYNET_KEY'],
+#     easynet_secret=config['EASYNET_SECRET'],
+#     ca_requests_bundle=config.get('BNPP_CA_BUNDLE')
+# )
 
 def get_easynet_data():
     with tracer.start_as_current_span("get_easynet_data"):
         environment = os.getenv('ENVIRONMENT', 'local')
-        
         if environment == 'production':
+            print(f"I'm using Environment: {environment}")
             # Use EasyNet in production
             with tracer.start_as_current_span("easynet_production_call"):
                 try:
@@ -106,6 +106,7 @@ def main():
     while True:
         with tracer.start_as_current_span("easynet_worker_main_loop"):
             print("EasyNet task is running...")
+            print(config)
             easynet_data = get_easynet_data()
             store_easynet_data_in_redis(easynet_data)
             time.sleep(30)  # Run every 30 seconds

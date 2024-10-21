@@ -7,3 +7,4 @@ opentelemetry-sdk
 opentelemetry-exporter-jaeger
 opentelemetry-exporter-otlp
 opentelemetry-instrumentation-botocore
+jsonschema

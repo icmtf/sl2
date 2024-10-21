@@ -13,22 +13,31 @@ graph TD
     nginx --> streamlit[Streamlit]
     nginx --> docs[Documentation]
     streamlit --> fastapi[FastAPI]
-    fastapi --> redis[Redis]
+    mkdocs[MkDocs] --> |generates| docs
+
     subgraph Workers
         easynet[EasyNet Worker]
         s3[S3 Worker]
     end
+
+    subgraph Data
+        redis[Redis]
+    end
+
+    subgraph Distributed Tracing
+        jaeger[Jaeger]
+    end
+
     easynet --> redis
     s3 --> redis
-    fastapi --> Workers
-    mkdocs[MkDocs] -.-> |generates| docs
+    fastapi --> redis
     
-    jaeger[Jaeger]
     streamlit -.-> |sends traces| jaeger
     fastapi -.-> |sends traces| jaeger
     easynet -.-> |sends traces| jaeger
     s3 -.-> |sends traces| jaeger
     
+    %% Styles
     style client fill:#000,stroke:#333,stroke-width:2px,color:#fff
     style nginx fill:#f9f,stroke:#333,stroke-width:4px
     style streamlit fill:#bbf,stroke:#f66,stroke-width:2px

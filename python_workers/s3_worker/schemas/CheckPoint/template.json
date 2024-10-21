@@ -1,0 +1,51 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "type": "object",
+  "properties": {
+    "backup_list": {
+      "type": "array",
+      "minItems": 2,
+      "maxItems": 2,
+      "items": {
+        "type": "object",
+        "properties": {
+          "backup_file": {
+            "type": "string",
+            "pattern": "^/media/fwbackup/backups/CheckPoint/[^/]+/.+$"
+          },
+          "date": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "type": {
+            "type": "string",
+            "enum": [
+              "config",
+              "system"
+            ]
+          }
+        },
+        "required": [
+          "backup_file",
+          "date",
+          "type"
+        ]
+      }
+    },
+    "hostname": {
+      "type": "string"
+    },
+    "vendor": {
+      "type": "string",
+      "enum": [
+        "CheckPoint"
+      ]
+    }
+  },
+  "required": [
+    "backup_list",
+    "hostname",
+    "vendor"
+  ],
+  "additionalProperties": false
+}

@@ -1,0 +1,58 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "type": "object",
+  "properties": {
+    "backup_list": {
+      "type": "array",
+      "minItems": 2,
+      "maxItems": 2,
+      "items": [
+        {
+          "type": "object",
+          "properties": {
+            "backup_file": {
+              "type": "string",
+              "pattern": "^/media/fwbackup/backups/F5/[^/]+/[^/]+\\.scf$"
+            },
+            "date": {
+              "type": "string",
+              "format": "date-time"
+            },
+            "type": {
+              "type": "string",
+              "const": "SCF"
+            }
+          },
+          "required": ["backup_file", "date", "type"]
+        },
+        {
+          "type": "object",
+          "properties": {
+            "backup_file": {
+              "type": "string",
+              "pattern": "^/media/fwbackup/backups/F5/[^/]+/[^/]+-\\d{8}-\\d{4}\\.ucs$"
+            },
+            "date": {
+              "type": "string",
+              "format": "date-time"
+            },
+            "type": {
+              "type": "string",
+              "const": "UCS"
+            }
+          },
+          "required": ["backup_file", "date", "type"]
+        }
+      ]
+    },
+    "hostname": {
+      "type": "string"
+    },
+    "vendor": {
+      "type": "string",
+      "const": "F5"
+    }
+  },
+  "required": ["backup_list", "hostname", "vendor"],
+  "additionalProperties": false
+}

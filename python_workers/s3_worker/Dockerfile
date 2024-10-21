@@ -3,6 +3,7 @@ FROM ${REGISTRY}python:3.9-slim
 
 WORKDIR /app
 
+# COPY pip.conf /etc/pip.conf
 COPY s3_worker/requirements.txt ./requirements.txt
 RUN pip install --no-cache-dir -r requirements.txt
 

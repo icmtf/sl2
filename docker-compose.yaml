@@ -111,8 +111,7 @@ services:
       - ./docs:/output
     networks:
       - sl_network
-
-
+  
 networks:
   sl_network:
     external: true
