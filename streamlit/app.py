@@ -10,6 +10,12 @@ from opentelemetry.exporter.otlp.proto.grpc.trace_exporter import OTLPSpanExport
 from opentelemetry.sdk.trace import TracerProvider
 from opentelemetry.sdk.trace.export import BatchSpanProcessor
 from opentelemetry.sdk.resources import Resource
+from pandas.api.types import (
+    is_categorical_dtype,
+    is_datetime64_any_dtype,
+    is_numeric_dtype,
+    is_object_dtype,
+)
 
 # Initialize OpenTelemetry
 if not trace.get_tracer_provider():
@@ -32,6 +38,78 @@ REDIS_URL = os.getenv('REDIS_URL', 'redis://redis:6379')
 redis_client = redis.Redis.from_url(REDIS_URL)
 
 st.title("EasyNet Dashboard")
+
+def filter_dataframe(df: pd.DataFrame) -> pd.DataFrame:
+    modify = st.checkbox("Add filters")
+    if not modify:
+        return df
+
+    df = df.copy()
+
+    # Try to convert datetimes into a standard format (datetime, no timezone)
+    for col in df.columns:
+        if is_object_dtype(df[col]):
+            try:
+                df[col] = pd.to_datetime(df[col])
+            except Exception:
+                pass
+        if is_datetime64_any_dtype(df[col]):
+            df[col] = df[col].dt.tz_localize(None)
+
+    modification_container = st.container()
+
+    with modification_container:
+        to_filter_columns = st.multiselect("Filter dataframe on", df.columns)
+        for column in to_filter_columns:
+            left, right = st.columns((1, 20))
+            left.write("↳")
+            # Check if the column contains lists
+            if df[column].apply(lambda x: isinstance(x, list)).any():
+                # For columns containing lists, we'll use a text input for filtering
+                user_text_input = right.text_input(
+                    f"Search in {column} (comma-separated values)",
+                )
+                if user_text_input:
+                    search_terms = [term.strip() for term in user_text_input.split(',')]
+                    df = df[df[column].apply(lambda x: any(term in str(x) for term in search_terms))]
+            elif is_categorical_dtype(df[column]) or df[column].nunique() < 10:
+                user_cat_input = right.multiselect(
+                    f"Values for {column}",
+                    df[column].unique(),
+                    default=list(df[column].unique()),
+                )
+                df = df[df[column].isin(user_cat_input)]
+            elif is_numeric_dtype(df[column]):
+                _min = float(df[column].min())
+                _max = float(df[column].max())
+                step = (_max - _min) / 100
+                user_num_input = right.slider(
+                    f"Values for {column}",
+                    _min,
+                    _max,
+                    (_min, _max),
+                    step=step,
+                )
+                df = df[df[column].between(*user_num_input)]
+            elif is_datetime64_any_dtype(df[column]):
+                user_date_input = right.date_input(
+                    f"Values for {column}",
+                    value=(
+                        df[column].min(),
+                        df[column].max(),
+                    ),
+                )
+                if len(user_date_input) == 2:
+                    user_date_input = tuple(map(pd.to_datetime, user_date_input))
+                    start_date, end_date = user_date_input
+                    df = df.loc[df[column].between(start_date, end_date)]
+            else:
+                user_text_input = right.text_input(
+                    f"Substring or regex in {column}",
+                )
+                if user_text_input:
+                    df = df[df[column].astype(str).str.contains(user_text_input)]
+    return df
 
 # Fetch data from FastAPI
 @st.cache_data(ttl=30)  # Cache the data for 30 seconds
@@ -73,50 +151,11 @@ with tracer.start_as_current_span("main_app"):
                 # Display the total number of devices
                 st.write(f"Total number of devices: {len(df)}")
 
-                # Define default columns
-                default_columns = ['hostname', 'ip', 'vendor', 'country', 'site', 'device_class']
+                # Use the new filter_dataframe function
+                filtered_df = filter_dataframe(df)
 
-                # Ensure all default columns exist in the dataframe
-                default_columns = [col for col in default_columns if col in df.columns]
-
-                # Allow users to select columns to display, with default columns pre-selected
-                all_columns = df.columns.tolist()
-                selected_columns = st.multiselect(
-                    "Select columns to display",
-                    all_columns,
-                    default=default_columns
-                )
-
-                # Display the table with selected columns
-                if selected_columns:
-                    st.dataframe(df[selected_columns])
-                else:
-                    st.warning("Please select at least one column to display the data.")
-
-                # Add filters
-                st.subheader("Filters")
-                
-                # Filter by vendor
-                vendors = sorted([v for v in df['vendor'].unique() if pd.notna(v)])
-                selected_vendor = st.multiselect("Filter by vendor", vendors)
-                
-                # Filter by country
-                countries = sorted([c for c in df['country'].unique() if pd.notna(c)])
-                selected_country = st.multiselect("Filter by country", countries)
-
-                # Apply filters
-                filtered_df = df.copy()
-                if selected_vendor:
-                    filtered_df = filtered_df[filtered_df['vendor'].isin(selected_vendor)]
-                if selected_country:
-                    filtered_df = filtered_df[filtered_df['country'].isin(selected_country)]
-
-                # Display filtered results
-                st.subheader("Filtered Results")
-                if selected_columns:
-                    st.dataframe(filtered_df[selected_columns])
-                else:
-                    st.dataframe(filtered_df)
+                # Display the filtered dataframe
+                st.dataframe(filtered_df)
 
                 # Add a download button for filtered results
                 csv = filtered_df.to_csv(index=False)
@@ -146,45 +185,10 @@ with tracer.start_as_current_span("main_app"):
                 # Display the total number of devices
                 st.write(f"Total number of devices: {len(df)}")
                 
-                # Display the table
-                st.dataframe(df)
+                # Use the new filter_dataframe function
+                filtered_df = filter_dataframe(df)
                 
-                # Add filters
-                st.subheader("Filters")
-                
-                # Filter by vendor
-                vendors = sorted(df['vendor'].unique())
-                selected_vendor = st.multiselect("Filter by vendor", vendors)
-                
-                # Filter by device class
-                device_classes = sorted(df['device_class'].unique())
-                selected_device_class = st.multiselect("Filter by device class", device_classes)
-                
-                # Filter by backup status
-                backup_status = st.radio("Filter by backup status", ["All", "With Backup", "Without Backup"])
-                
-                # Filter by schema status
-                schema_status = st.radio("Filter by schema status", ["All", "Valid Schema", "Invalid Schema", "No Schema"])
-                
-                # Apply filters
-                filtered_df = df.copy()
-                if selected_vendor:
-                    filtered_df = filtered_df[filtered_df['vendor'].isin(selected_vendor)]
-                if selected_device_class:
-                    filtered_df = filtered_df[filtered_df['device_class'].isin(selected_device_class)]
-                if backup_status == "With Backup":
-                    filtered_df = filtered_df[filtered_df['backup_json'] == True]
-                elif backup_status == "Without Backup":
-                    filtered_df = filtered_df[filtered_df['backup_json'] == False]
-                if schema_status == "Valid Schema":
-                    filtered_df = filtered_df[filtered_df['valid_schema'] == True]
-                elif schema_status == "Invalid Schema":
-                    filtered_df = filtered_df[filtered_df['valid_schema'] == False]
-                elif schema_status == "No Schema":
-                    filtered_df = filtered_df[filtered_df['schema'] == False]
-                
-                # Display filtered results
-                st.subheader("Filtered Results")
+                # Display the filtered dataframe
                 st.dataframe(filtered_df)
                 
                 # Add a download button for filtered results
