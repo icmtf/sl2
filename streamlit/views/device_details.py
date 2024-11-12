@@ -28,21 +28,22 @@ def load_devices_data():
         st.error(f"Error loading devices data: {str(e)}")
         return []
 
-def get_backup_status(hostname, backups_data):
-    """Get backup status for a device"""
+def get_backup_icon(hostname, backups_data):
+    """Get backup status icon for a device"""
     try:
-        backup_info = backups_data.get(hostname, {})
-        return "Available" if backup_info.get('has_backup', False) else "Missing"
+        if hostname in backups_data and backups_data[hostname].get('has_backup', False):
+            return "✅"
+        return "❌"
     except Exception:
-        return "Missing"
+        return "❌"
 
 def format_date(date_str):
     """Format date string nicely"""
     try:
         if not date_str:
             return "N/A"
-        date_obj = datetime.strptime(date_str, "%Y-%m-%d")
-        return date_obj.strftime("%d %b %Y")
+        date_obj = datetime.fromisoformat(date_str)
+        return date_obj.strftime("%Y-%m-%d %H:%M:%S %z")
     except Exception:
         return date_str
 
@@ -105,17 +106,12 @@ def device_details_view():
     if selected_environments:
         filtered_df = filtered_df[filtered_df['environment'].isin(selected_environments)]
     
-    # Add backup.json information
-    def get_backup_icon(hostname):
-        if hostname in backups and backups[hostname].get('has_backup', False):
-            return "✅"  # Unicode checkmark
-        return "❌"  # Unicode cross mark
-    
+    # Add backup status
     for idx, row in filtered_df.iterrows():
-        filtered_df.at[idx, 'backup.json'] = get_backup_icon(row['hostname'])
+        filtered_df.at[idx, 'backup'] = get_backup_icon(row['hostname'], backups)
     
     # Convert filtered data to display format
-    display_df = filtered_df[['hostname', 'ip', 'country', 'environment', 'device_class', 'backup.json', 'selected']].copy()
+    display_df = filtered_df[['hostname', 'ip', 'country', 'environment', 'device_class', 'backup', 'selected']].copy()
     
     # Display table with checkboxes
     edited_df = st.data_editor(
@@ -148,7 +144,7 @@ def device_details_view():
                 "Device Class",
                 width="small",
             ),
-            "backup.json": st.column_config.Column(
+            "backup": st.column_config.Column(
                 "Backup",
                 width="small",
                 help="✅ - Backup available | ❌ - Backup missing",
@@ -156,7 +152,7 @@ def device_details_view():
         },
         key="device_details_table",
         use_container_width=True,
-        disabled=["hostname", "ip", "country", "environment", "device_class", "backup.json"]
+        disabled=["hostname", "ip", "country", "environment", "device_class", "backup"]
     )
 
     # Display details for selected devices
@@ -169,29 +165,25 @@ def device_details_view():
                 device = devices_dict[row['hostname']]
                 
                 st.write("---")
-                # Main sections - Device Information and Backup
-                device_info_container = st.container()
-                with device_info_container:
-                    # Device Information section
-                    st.write("## Device Information")
-                    col1, col2, col3 = st.columns(3)
-                    with col1:
-                        st.write("##### Device Details")
-                        st.write(f"**Hostname:** {device['hostname']}")
-                        st.write(f"**IP Address:** {device['ip']}")
-                        st.write(f"**Country:** {device['country']}")
-                    with col2:
-                        st.write("##### System Details")
-                        st.write(f"**Operating System:** {device.get('os', 'N/A')}")
-                        st.write(f"**Version:** {device.get('version', 'N/A')}")
-                        st.write(f"**Partition:** {device.get('partition', 'N/A')}")
-                    with col3:
-                        st.write("##### Status")
-                        st.write(f"**Environment:** {device.get('environment', 'N/A')}")
-                        st.write(f"**Status:** {device.get('status_name', 'N/A')}")
-                        st.write(f"**Status:** {device.get('status', 'N/A')}")
+                # Device Information section
+                st.write("## Device Information")
+                col1, col2, col3 = st.columns(3)
+                with col1:
+                    st.write("##### Device Details")
+                    st.write(f"**Hostname:** {device['hostname']}")
+                    st.write(f"**IP Address:** {device['ip']}")
+                    st.write(f"**Country:** {device['country']}")
+                with col2:
+                    st.write("##### System Details")
+                    st.write(f"**Operating System:** {device.get('os', 'N/A')}")
+                    st.write(f"**Version:** {device.get('version', 'N/A')}")
+                    st.write(f"**Partition:** {device.get('partition', 'N/A')}")
+                with col3:
+                    st.write("##### Status")
+                    st.write(f"**Environment:** {device.get('environment', 'N/A')}")
+                    st.write(f"**Status:** {device.get('status_name', 'N/A')}")
                 
-                # Technical Details section (expandable)
+                # Technical Details section
                 with st.expander("Technical Details"):
                     tech_col1, tech_col2 = st.columns(2)
                     with tech_col1:
@@ -208,19 +200,16 @@ def device_details_view():
                         st.write(f"**End of SW Support:** {format_date(device.get('ld_sw_support', 'N/A'))}")
                 
                 # Backup Information section
-                with st.expander("Backup Information", expanded=True):
-                    if device['hostname'] in backups:
+                if device['hostname'] in backups:
+                    with st.expander("Backup Information"):
                         backup_info = backups[device['hostname']]
                         st.write("##### Backup Details")
-                        st.write(f"**Last Backup Date:** {backup_info.get('backup.json_s3_date', 'N/A')}")
                         st.write(f"**Schema Valid:** {backup_info.get('valid_schema', 'N/A')}")
                         
-                        # Show backup files if available
                         if backup_info.get('backup_data', {}).get('backup_list'):
                             st.write("##### Backup Files")
                             for backup in backup_info['backup_data']['backup_list']:
-                                st.write(f"- [{backup['type']}] {backup['date']}: {backup['backup_file']}")
-                    else:
-                        st.warning("No backup information available for this device.")
+                                st.write(f"- [{backup['type']}] {format_date(backup['date'])}: {backup['backup_file']}")
+
 if __name__ == "__main__":
     device_details_view()

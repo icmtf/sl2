@@ -12,6 +12,7 @@ from opentelemetry.sdk.trace.export import BatchSpanProcessor
 from opentelemetry.sdk.resources import Resource
 from opentelemetry.instrumentation.botocore import BotocoreInstrumentor
 from jsonschema import validate, ValidationError
+from datetime import datetime, timezone
 
 from pyinet.common.config_loader import ConfigLoader
 
@@ -63,7 +64,37 @@ def get_s3_file_content(key):
             response = s3_client.get_object(Bucket=config['S3_BUCKET'], Key=key)
             return json.loads(response['Body'].read().decode('utf-8'))
         except Exception as e:
+            print(f"Error getting file content: {str(e)}")
             return None
+
+def calculate_backup_age(backup_date_str, max_age):
+    """Calculate backup age status"""
+    try:
+        # Convert the backup date string to datetime
+        backup_date = datetime.fromisoformat(backup_date_str.replace('Z', '+00:00'))
+        current_time = datetime.now(timezone.utc)
+        
+        # Calculate age in seconds
+        age = (current_time - backup_date).total_seconds()
+        age_factor = age / max_age
+
+        # Return the age information
+        return {
+            "age_seconds": age,
+            "age_days": age / 86400,  # Convert to days
+            "age_factor": age_factor,
+            "status": "error" if age_factor > 4 else 
+                     "critical" if age_factor > 3 else 
+                     "warning" if age_factor > 2 else 
+                     "ok",
+            "color": "purple" if age_factor > 4 else 
+                     "red" if age_factor > 3 else 
+                     "orange" if age_factor > 2 else 
+                     "yellow"
+        }
+    except Exception as e:
+        print(f"Error calculating backup age: {str(e)}")
+        return None
 
 def get_s3_backups_data():
     with tracer.start_as_current_span("get_s3_backups_data"):
@@ -96,11 +127,17 @@ def get_s3_backups_data():
                     if backup_data:
                         template_key = f"{device_class}/{vendor}"
                         has_schema = template_key in templates
+                        
+                        # Process each backup file
+                        if 'backup_list' in backup_data:
+                            for backup in backup_data['backup_list']:
+                                if 'date' in backup and 'max_age' in backup:
+                                    backup['age_info'] = calculate_backup_age(backup['date'], backup['max_age'])
+                        
                         backups[hostname] = {
                             'device_class': device_class,
                             'vendor': vendor,
                             'has_backup': True,
-                            'backup.json_s3_date': obj['LastModified'].isoformat(),
                             'backup_data': backup_data,
                             'schema': has_schema,
                             'valid_schema': None
@@ -115,15 +152,17 @@ def get_s3_backups_data():
                                 backups[hostname]['valid_schema'] = False
             
             return backups
-        except ClientError:
+        except ClientError as e:
+            print(f"Error in get_s3_backups_data: {str(e)}")
             return {}
 
 def store_s3_data_in_redis(s3_backups):
     with tracer.start_as_current_span("store_s3_data_in_redis"):
         try:
             redis_client.set("s3_backups", json.dumps(s3_backups))
-        except redis.RedisError:
-            pass
+            print(f"Stored data for {len(s3_backups)} devices in Redis")
+        except redis.RedisError as e:
+            print(f"Error storing data in Redis: {str(e)}")
 
 def main():
     while True:

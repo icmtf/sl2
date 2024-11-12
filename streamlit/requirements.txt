@@ -11,3 +11,4 @@ opentelemetry-sdk
 opentelemetry-exporter-jaeger
 opentelemetry-exporter-otlp
 opentelemetry-instrumentation-requests
+streamlit-aggrid
