@@ -1,4 +1,3 @@
-
 import streamlit as st
 import pandas as pd
 import geopandas as gpd
@@ -36,11 +35,11 @@ def get_devices_data():
             device_data = redis_client.get(key)
             if device_data:
                 device = json.loads(device_data)
-                if not device.get('country'):
+                if device.get('country') is None:
                     device['country'] = 'Unknown'
-                if not device.get('device_class'):
+                if device.get('device_class') is None:
                     device['device_class'] = 'Unknown'
-                if not device.get('vendor'):
+                if device.get('vendor') is None:
                     device['vendor'] = 'Unknown'
                 devices.append(device)
         
@@ -210,7 +209,9 @@ def global_overview():
             st.warning("No device data available")
             return
         
-        devices_df = pd.DataFrame(devices).fillna({
+        devices_df = pd.DataFrame(devices)
+        # Fill NaN values
+        devices_df = devices_df.fillna({
             'country': 'Unknown',
             'device_class': 'Unknown',
             'vendor': 'Unknown',
