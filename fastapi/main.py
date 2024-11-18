@@ -24,10 +24,10 @@ app = FastAPI()
 # Add CORS middleware
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["*"],  # Allows all origins
+    allow_origins=["*"],
     allow_credentials=True,
-    allow_methods=["*"],  # Allows all methods
-    allow_headers=["*"],  # Allows all headers
+    allow_methods=["*"],
+    allow_headers=["*"],
 )
 
 # Instrument FastAPI
@@ -47,7 +47,6 @@ async def get_easynet_devices():
     with tracer.start_as_current_span("get_easynet_devices"):
         try:
             keys = redis_client.keys("device:*")
-            
             devices = []
             for key in keys:
                 with tracer.start_as_current_span("process_device"):
@@ -62,6 +61,46 @@ async def get_easynet_devices():
             raise HTTPException(status_code=500, detail="JSON decode error")
         except Exception as e:
             raise HTTPException(status_code=500, detail="An unexpected error occurred")
+
+@app.get("/get_device/{hostname}")
+async def get_device(hostname: str):
+    """Get details for a single device and its backup status"""
+    with tracer.start_as_current_span("get_device_details"):
+        try:
+            # Get device data
+            device_key = f"device:{hostname}"
+            device_data = redis_client.get(device_key)
+            
+            if not device_data:
+                raise HTTPException(status_code=404, detail="Device not found")
+            
+            device = json.loads(device_data)
+            
+            # Get backup data for the device
+            backup_data = redis_client.get("s3_backups")
+            if backup_data:
+                backups = json.loads(backup_data)
+                device_backup = backups.get(hostname, {})
+                
+                # Combine device and backup data
+                result = {
+                    **device,
+                    "backup_info": device_backup
+                }
+            else:
+                result = {
+                    **device,
+                    "backup_info": {}
+                }
+            
+            return result
+            
+        except redis.RedisError as e:
+            raise HTTPException(status_code=500, detail="Redis error")
+        except json.JSONDecodeError as e:
+            raise HTTPException(status_code=500, detail="JSON decode error")
+        except Exception as e:
+            raise HTTPException(status_code=500, detail=str(e))
 
 @app.get("/get_devices_backup_status")
 async def get_devices_backup_status():

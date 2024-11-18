@@ -37,34 +37,79 @@ def format_date(date_str):
     except Exception:
         return date_str
 
-def handle_selection(edited_rows, current_selection):
-    """Handle checkbox selection changes"""
-    changes = {}
-    for idx, row in edited_rows.items():
-        if row.get('selected'):
-            changes[row['hostname']] = True
-        else:
-            changes[row['hostname']] = False
+def display_device_details(device, backups):
+    """Display details for a single device"""
+    hostname = device['hostname']
     
-    # Update selection state
-    new_selection = current_selection.copy()
-    for hostname, selected in changes.items():
-        if selected:
-            new_selection.add(hostname)
-        else:
-            new_selection.discard(hostname)
+    st.write("---")
+    # Device Information section
+    st.write(f"## Device Information - {hostname}")
+    col1, col2, col3 = st.columns(3)
+    with col1:
+        st.write("##### Device Details")
+        st.write(f"**Hostname:** {hostname}")
+        st.write(f"**IP Address:** {device['ip']}")
+        st.write(f"**Country:** {device['country']}")
+    with col2:
+        st.write("##### System Details")
+        st.write(f"**Operating System:** {device.get('os', 'N/A')}")
+        st.write(f"**Version:** {device.get('version', 'N/A')}")
+        st.write(f"**Partition:** {device.get('partition', 'N/A')}")
+    with col3:
+        st.write("##### Status")
+        st.write(f"**Environment:** {device.get('environment', 'N/A')}")
+        st.write(f"**Status:** {device.get('status_name', 'N/A')}")
     
-    return new_selection
+    # Technical Details section
+    with st.expander("Technical Details", expanded=True):
+        tech_col1, tech_col2 = st.columns(2)
+        with tech_col1:
+            st.write("##### Hardware Information")
+            st.write(f"**Vendor:** {device.get('vendor', 'N/A')}")
+            st.write(f"**Model:** {device.get('pid', 'N/A')}")
+            st.write(f"**Serial Number:** {device.get('serial_number', 'N/A')}")
+            st.write(f"**Device Class:** {device.get('device_class', 'N/A')}")
+        with tech_col2:
+            st.write("##### Support Details")
+            st.write(f"**Support Profile:** {device.get('support_profile', 'N/A')}")
+            st.write(f"**Last Update:** {format_date(device.get('last_update', 'N/A'))}")
+            st.write(f"**End of Support:** {format_date(device.get('ld_support', 'N/A'))}")
+            st.write(f"**End of SW Support:** {format_date(device.get('ld_sw_support', 'N/A'))}")
+    
+    # Backup Information section
+    if hostname in backups:
+        with st.expander("Backup Information", expanded=True):
+            backup_info = backups[hostname]
+            st.write("##### Backup Details")
+            st.write(f"**Schema Valid:** {backup_info.get('valid_schema', 'N/A')}")
+            
+            if backup_info.get('backup_data', {}).get('backup_list'):
+                st.write("##### Backup Files")
+                for backup in backup_info['backup_data']['backup_list']:
+                    st.write(f"- [{backup['type']}] {format_date(backup['date'])}: {backup['backup_file']}")
+
+def handle_selection_change(editor_change):
+    """Handle selection changes without triggering page reload"""
+    if editor_change.get('edited_rows'):
+        for idx, changes in editor_change['edited_rows'].items():
+            if 'selected' in changes:
+                hostname = st.session_state.display_df.iloc[int(idx)]['hostname']
+                if changes['selected']:
+                    st.session_state.selected_devices.add(hostname)
+                else:
+                    st.session_state.selected_devices.discard(hostname)
 
 def device_details_view():
     """Main function for Device Details view"""
     st.write("## Network Devices Details")
     
-    # Initialize session states
+    # Initialize session states if not already present
     if 'selected_devices' not in st.session_state:
         st.session_state.selected_devices = set()
-    if 'previous_selection' not in st.session_state:
-        st.session_state.previous_selection = set()
+    if 'sort_column' not in st.session_state:
+        st.session_state.sort_column = None
+    if 'sort_direction' not in st.session_state:
+        st.session_state.sort_direction = None
     
     # Load data
     devices = load_devices_data()
@@ -128,10 +173,22 @@ def device_details_view():
         filtered_df.at[idx, 'selected'] = row['hostname'] in st.session_state.selected_devices
     
     # Convert filtered data to display format
-    display_df = filtered_df[['hostname', 'ip', 'country', 'environment', 'device_class', 'backup_status', 'backup', 'selected']].copy()
+    display_df = filtered_df[['hostname', 'ip', 'country', 'environment', 
+                             'device_class', 'backup_status', 'backup', 'selected']].copy()
     
-    # Display table with checkboxes
-    edited_df = st.data_editor(
+    # Save display DataFrame to session state
+    st.session_state.display_df = display_df
+    
+    # Apply sorting if set
+    if st.session_state.sort_column:
+        ascending = st.session_state.sort_direction == 'ascending'
+        display_df = display_df.sort_values(
+            by=st.session_state.sort_column,
+            ascending=ascending
+        )
+    
+    # Create data editor
+    editor_change = st.data_editor(
         display_df,
         hide_index=True,
         column_config={
@@ -139,6 +196,7 @@ def device_details_view():
                 "Details",
                 help="Select to view device details",
                 width='small',
+                default=False
             ),
             "hostname": st.column_config.TextColumn(
                 "Hostname",
@@ -173,72 +231,22 @@ def device_details_view():
         },
         key="device_details_table",
         use_container_width=True,
-        disabled=["hostname", "ip", "country", "environment", "device_class", "backup_status", "backup"]
+        disabled=["hostname", "ip", "country", "environment", "device_class", "backup_status", "backup"],
+        on_change=lambda: handle_selection_change(st.session_state.device_details_table)
     )
-
-    # Handle checkbox changes
-    if edited_df is not None and not edited_df.equals(display_df):
-        edited_rows = edited_df[edited_df['selected'] != display_df['selected']]
-        if not edited_rows.empty:
-            st.session_state.selected_devices = handle_selection(
-                edited_rows.to_dict('index'),
-                st.session_state.selected_devices
-            )
-            st.rerun()
-
+    
+    # Handle sorting
+    if 'sorted_column' in st.session_state.device_details_table:
+        sort_info = st.session_state.device_details_table['sorted_column']
+        if sort_info:
+            st.session_state.sort_column = sort_info['column']
+            st.session_state.sort_direction = sort_info['direction']
+    
     # Display details for selected devices
     devices_dict = {device['hostname']: device for device in devices}
-    
     for hostname in sorted(st.session_state.selected_devices):
         if hostname in devices_dict:
-            device = devices_dict[hostname]
-            
-            st.write("---")
-            # Device Information section
-            st.write(f"## Device Information - {hostname}")
-            col1, col2, col3 = st.columns(3)
-            with col1:
-                st.write("##### Device Details")
-                st.write(f"**Hostname:** {device['hostname']}")
-                st.write(f"**IP Address:** {device['ip']}")
-                st.write(f"**Country:** {device['country']}")
-            with col2:
-                st.write("##### System Details")
-                st.write(f"**Operating System:** {device.get('os', 'N/A')}")
-                st.write(f"**Version:** {device.get('version', 'N/A')}")
-                st.write(f"**Partition:** {device.get('partition', 'N/A')}")
-            with col3:
-                st.write("##### Status")
-                st.write(f"**Environment:** {device.get('environment', 'N/A')}")
-                st.write(f"**Status:** {device.get('status_name', 'N/A')}")
-            
-            # Technical Details section
-            with st.expander("Technical Details", expanded=True):
-                tech_col1, tech_col2 = st.columns(2)
-                with tech_col1:
-                    st.write("##### Hardware Information")
-                    st.write(f"**Vendor:** {device.get('vendor', 'N/A')}")
-                    st.write(f"**Model:** {device.get('pid', 'N/A')}")
-                    st.write(f"**Serial Number:** {device.get('serial_number', 'N/A')}")
-                    st.write(f"**Device Class:** {device.get('device_class', 'N/A')}")
-                with tech_col2:
-                    st.write("##### Support Details")
-                    st.write(f"**Support Profile:** {device.get('support_profile', 'N/A')}")
-                    st.write(f"**Last Update:** {format_date(device.get('last_update', 'N/A'))}")
-                    st.write(f"**End of Support:** {format_date(device.get('ld_support', 'N/A'))}")
-                    st.write(f"**End of SW Support:** {format_date(device.get('ld_sw_support', 'N/A'))}")
-            
-            # Backup Information section
-            if hostname in backups:
-                with st.expander("Backup Information", expanded=True):
-                    backup_info = backups[hostname]
-                    st.write("##### Backup Details")
-                    st.write(f"**Schema Valid:** {backup_info.get('valid_schema', 'N/A')}")
-                    
-                    if backup_info.get('backup_data', {}).get('backup_list'):
-                        st.write("##### Backup Files")
-                        for backup in backup_info['backup_data']['backup_list']:
-                            st.write(f"- [{backup['type']}] {format_date(backup['date'])}: {backup['backup_file']}")
+            display_device_details(devices_dict[hostname], backups)
 
 if __name__ == "__main__":
     device_details_view()
