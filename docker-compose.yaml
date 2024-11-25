@@ -15,15 +15,15 @@ services:
       - redis
       - jaeger
     networks:
-      - sl_network
+      - default
 
   fastapi:
     build:
       context: ./fastapi
       args:
         REGISTRY: ${REGISTRY:-}
-    ports:
-      - "8000:8000"
+    expose:
+      - "8000"
     environment:
       - REDIS_URL=redis://redis:6379
       - OTEL_EXPORTER_OTLP_ENDPOINT=http://jaeger:4317
@@ -31,17 +31,17 @@ services:
       - redis
       - jaeger
     networks:
-      - sl_network
+      - default
 
   redis:
     image: ${REGISTRY:-}redis:6
-    ports:
-      - "6379:6379"
+    expose:
+      - "6379"
     volumes:
       - ./redis/redis.conf:/usr/local/etc/redis/redis.conf
     command: redis-server /usr/local/etc/redis/redis.conf
     networks:
-      - sl_network
+      - default
 
   s3_worker:
     build:
@@ -60,7 +60,7 @@ services:
       - redis
       - jaeger
     networks:
-      - sl_network
+      - default
 
   easynet_worker:
     build:
@@ -76,15 +76,17 @@ services:
       - redis
       - jaeger
     networks:
-      - sl_network
+      - default
 
   jaeger:
     image: ${REGISTRY:-}jaegertracing/all-in-one:latest
-    ports:
-      - "16686:16686"  # Jaeger UI
-      - "6831:6831/udp"  # Jaeger agent
+    expose:
+      - "16686"  # Jaeger UI
+      - "6831/udp"  # Jaeger agent
+      - "4317"   # OTLP gRPC
+      - "4318"   # OTLP HTTP
     networks:
-      - sl_network
+      - default
 
   nginx_reverse_proxy:
     build:
@@ -92,14 +94,14 @@ services:
       args:
         REGISTRY: ${REGISTRY:-}
     ports:
-      - "8501:80"
+      - "${NGINX_PUBLIC_PORT:-8080}:80"
     volumes:
       - ./docs:/usr/share/nginx/html:ro
     depends_on:
       - mkdocs
       - streamlit
     networks:
-      - sl_network
+      - default
 
   mkdocs:
     build:
@@ -110,8 +112,10 @@ services:
       - ./mkdocs:/docs
       - ./docs:/output
     networks:
-      - sl_network
+      - default
   
 networks:
-  sl_network:
+  default:
     external: true
+    name: ${APP_NAME:-CodeHorizon}_${APP_ENV_NAME:-sbx00}_network
+

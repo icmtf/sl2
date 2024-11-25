@@ -9,6 +9,7 @@ nav:
   - Home: index.md
   - About: about.md
   - Architecture: architecture.md
+  - Development workflow: development_workflow.md
 markdown_extensions:
   - pymdownx.superfences:
       custom_fences:

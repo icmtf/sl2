@@ -9,10 +9,11 @@ services:
       - 9090:9090
       - 9191:9191
     volumes:
-      - ./locals3root:/containers3root
+      - ../../locals3root:/containers3root
     networks:
-      - sl_network
+      - default
 
 networks:
-  sl_network:
+  default:
     external: true
+    name: ${APP_NAME:-CodeHorizon}_${APP_ENV_NAME:-sbx00}_network

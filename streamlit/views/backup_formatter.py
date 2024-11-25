@@ -1,96 +1,133 @@
-from datetime import datetime, timezone
-import streamlit as st
-import re
+from typing import Dict, Any
+import redis
+import json
+import os
 
-def parse_iso8601(date_str):
-    """Parse ISO 8601 date string with timezone offset"""
-    try:
-        # Handle timezone offset in format +0200
-        if '+' in date_str and len(date_str.split('+')[1]) == 4:
-            # Split into main part and timezone
-            main_part, tz = date_str.split('+')
-            # Insert colon into timezone offset (0200 -> 02:00)
-            formatted_tz = f"{tz[:2]}:{tz[2:]}"
-            date_str = f"{main_part}+{formatted_tz}"
-        return datetime.fromisoformat(date_str)
-    except Exception as e:
-        print(f"Error parsing date {date_str}: {e}")
-        return None
+def get_backup_status_info(hostname: str, backups: Dict[str, Any]) -> Dict[str, Any]:
+    """
+    Get backup status information for a device with status tracking per type.
+    
+    Status levels based on age_factor (age/max_age):
+    0 - OK (age < max_age) -> 🟢
+    1 - Warning (max_age <= age < 2*max_age) -> 🟡
+    2 - Attention (2*max_age <= age < 3*max_age) -> 🟠
+    3 - Severe (3*max_age <= age < 4*max_age) -> 🔴
+    4 - Critical (4*max_age <= age < 5*max_age) -> 🟣
+    5+ - Failure (age >= 5*max_age) -> ⚫
+    
+    Special cases:
+    - No backup.json -> ❌
+    - Empty/invalid backup.json -> ⚪
+    """
+    DEFAULT_STATUS = {
+        'status': 5,  # Default to highest (worst) status
+        'type_statuses': {},
+        'worst_status': 5
+    }
 
-def get_backup_status_info(backup_date_str, max_age):
-    """Calculate backup age and determine status color"""
     try:
-        backup_date = parse_iso8601(backup_date_str)
-        if not backup_date:
-            return "⚫"  # Error parsing date
-            
-        # Convert to UTC for consistent comparison
-        current_time = datetime.now(timezone.utc)
-        backup_date_utc = backup_date.astimezone(timezone.utc)
+        if not hostname in backups:
+            return DEFAULT_STATUS
         
-        age = (current_time - backup_date_utc).total_seconds()
-        age_factor = age / max_age
+        backup_info = backups.get(hostname, {})
+        if not backup_info:
+            return DEFAULT_STATUS
+            
+        backup_data = backup_info.get('backup_data', {})
+        if not backup_data:
+            return DEFAULT_STATUS
+            
+        backup_list = backup_data.get('backup_list', [])
+        if not backup_list:
+            return DEFAULT_STATUS
         
-        if age_factor <= 1:
-            return "🟢"  # Green
-        elif age_factor <= 2:
-            return "🟡"  # Yellow
-        elif age_factor <= 3:
-            return "🟠"  # Orange
-        elif age_factor <= 4:
-            return "🔴"  # Red
-        else:
-            return "🟣"  # Purple
-            
-    except Exception as e:
-        print(f"Error in get_backup_status_info: {e}")
-        return "⚫"  # Black for error
-
-def format_backup_date(date_str):
-    """Format backup date to a readable string"""
-    try:
-        date = parse_iso8601(date_str)
-        if not date:
-            return "Invalid date"
-        return date.strftime("%Y-%m-%d %H:%M")
-    except Exception as e:
-        print(f"Error formatting date: {e}")
-        return "Invalid date"
-
-def get_backup_icon(hostname, backups_data):
-    """Get backup icon for a device"""
-    try:
-        if hostname in backups_data and backups_data[hostname].get('has_backup', False):
-            return "✅"
-        return "❌"
-    except Exception:
-        return "❌"
-
-def get_backup_status(hostname, backups_data):
-    """Get formatted backup status for a device"""
-    try:
-        # Check if device has backups
-        if hostname not in backups_data or not backups_data[hostname].get('has_backup', False):
-            return "⚫ No backups available"
-            
-        backup_info = backups_data[hostname]
-        if not backup_info.get('backup_data') or not backup_info['backup_data'].get('backup_list'):
-            return "⚫ Backup data missing"
-            
-        # Process each backup file
-        status_lines = []
-        for backup in backup_info['backup_data']['backup_list']:
-            if all(key in backup for key in ['type', 'date', 'max_age']):
-                status = get_backup_status_info(backup['date'], backup['max_age'])
-                date = format_backup_date(backup['date'])
-                status_lines.append(f"{status} {backup['type']}: {date}")
+        # Track age factors per type
+        type_age_factors: Dict[str, float] = {}
         
-        if not status_lines:
-            return "⚫ Invalid backup data"
+        # Process each backup
+        for backup in backup_list:
+            if not isinstance(backup, dict):
+                continue
+                
+            backup_type = backup.get('type')
+            if not backup_type:
+                continue
+                
+            age_info = backup.get('age_info', {})
+            if not isinstance(age_info, dict):
+                age_info = {}
+                
+            try:
+                age_factor = float(age_info.get('age_factor', float('inf')))
+            except (TypeError, ValueError):
+                age_factor = float('inf')
             
-        # Return all status lines joined with line breaks
-        return "\n".join(status_lines)
+            # Keep track of the worst (highest) age factor for each type
+            current_worst = type_age_factors.get(backup_type, -1)
+            type_age_factors[backup_type] = max(current_worst, age_factor)
+        
+        # If we have no valid age factors, return default status
+        if not type_age_factors:
+            return DEFAULT_STATUS
+        
+        # Convert age factors to status levels
+        type_statuses = {}
+        worst_overall_status = 0
+        
+        for backup_type, age_factor in type_age_factors.items():
+            # Status based on age_factor ranges
+            if age_factor < 1:
+                status = 0  # green - current
+            elif age_factor < 2:
+                status = 1  # yellow - warning
+            elif age_factor < 3:
+                status = 2  # orange - attention
+            elif age_factor < 4:
+                status = 3  # red - severe
+            elif age_factor < 5:
+                status = 4  # purple - critical
+            else:
+                status = 5  # black - failure
+                
+            type_statuses[backup_type] = status
+            worst_overall_status = max(worst_overall_status, status)
+        
+        return {
+            'status': worst_overall_status,
+            'type_statuses': type_statuses,
+            'worst_status': worst_overall_status
+        }
         
     except Exception as e:
-        print(f"Error in get_backup_status: {e}")
-        return f"⚫ Error: {str(e)}"
+        print(f"Error getting backup status for {hostname}: {str(e)}")
+        return DEFAULT_STATUS
+
+def format_backup_display(status_info):
+    """Format backup display string for data editor"""
+    # Case 1: No backup.json at all
+    if not status_info:
+        return "❌ No backup.json"
+    
+    # Case 2: Has backup.json but no type_statuses
+    if not status_info.get('type_statuses'):
+        return "⚪ Empty/invalid backup.json"
+
+    type_statuses = status_info['type_statuses']
+    worst_status = status_info.get('worst_status', 5)
+    
+    # Map status to emoji based on age_factor ranges
+    if worst_status == 0:
+        emoji = '🟢'     # age < max_age
+    elif worst_status == 1:
+        emoji = '🟡'     # max_age <= age < 2*max_age
+    elif worst_status == 2:
+        emoji = '🟠'     # 2*max_age <= age < 3*max_age
+    elif worst_status == 3:
+        emoji = '🔴'     # 3*max_age <= age < 4*max_age
+    elif worst_status == 4:
+        emoji = '🟣'     # 4*max_age <= age < 5*max_age
+    else:
+        emoji = '⚫'     # age >= 5*max_age (Failure)
+
+    types_str = ", ".join(sorted(type_statuses.keys()))
+    return f"{emoji} {types_str}"

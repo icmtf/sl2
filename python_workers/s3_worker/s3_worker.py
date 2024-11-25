@@ -1,5 +1,6 @@
 import os
 import time
+import math
 import redis
 import json
 import boto3
@@ -59,6 +60,7 @@ client_kwargs = {
 s3_client = boto3.client(**client_kwargs)
 
 def get_s3_file_content(key):
+    """Get content of a file from S3 bucket"""
     with tracer.start_as_current_span("get_s3_file_content"):
         try:
             response = s3_client.get_object(Bucket=config['S3_BUCKET'], Key=key)
@@ -67,36 +69,8 @@ def get_s3_file_content(key):
             print(f"Error getting file content: {str(e)}")
             return None
 
-def calculate_backup_age(backup_date_str, max_age):
-    """Calculate backup age status"""
-    try:
-        # Convert the backup date string to datetime
-        backup_date = datetime.fromisoformat(backup_date_str.replace('Z', '+00:00'))
-        current_time = datetime.now(timezone.utc)
-        
-        # Calculate age in seconds
-        age = (current_time - backup_date).total_seconds()
-        age_factor = age / max_age
-
-        # Return the age information
-        return {
-            "age_seconds": age,
-            "age_days": age / 86400,  # Convert to days
-            "age_factor": age_factor,
-            "status": "error" if age_factor > 4 else 
-                     "critical" if age_factor > 3 else 
-                     "warning" if age_factor > 2 else 
-                     "ok",
-            "color": "purple" if age_factor > 4 else 
-                     "red" if age_factor > 3 else 
-                     "orange" if age_factor > 2 else 
-                     "yellow"
-        }
-    except Exception as e:
-        print(f"Error calculating backup age: {str(e)}")
-        return None
-
 def get_s3_backups_data():
+    """Get backup data from S3 and process it"""
     with tracer.start_as_current_span("get_s3_backups_data"):
         try:
             response = s3_client.list_objects_v2(
@@ -128,19 +102,13 @@ def get_s3_backups_data():
                         template_key = f"{device_class}/{vendor}"
                         has_schema = template_key in templates
                         
-                        # Process each backup file
-                        if 'backup_list' in backup_data:
-                            for backup in backup_data['backup_list']:
-                                if 'date' in backup and 'max_age' in backup:
-                                    backup['age_info'] = calculate_backup_age(backup['date'], backup['max_age'])
-                        
+                        # Add backup_json_data to the backups dictionary
                         backups[hostname] = {
                             'device_class': device_class,
                             'vendor': vendor,
-                            'has_backup': True,
-                            'backup_data': backup_data,
                             'schema': has_schema,
-                            'valid_schema': None
+                            'valid_schema': None,
+                            'backup_json_data': backup_data
                         }
                         
                         # Validate against template
@@ -156,19 +124,74 @@ def get_s3_backups_data():
             print(f"Error in get_s3_backups_data: {str(e)}")
             return {}
 
-def store_s3_data_in_redis(s3_backups):
+def get_s3_compliance_data():
+    """Get compliance data (operational_status.json and validation.json) from S3"""
+    with tracer.start_as_current_span("get_s3_compliance_data"):
+        try:
+            response = s3_client.list_objects_v2(
+                Bucket=config['S3_BUCKET'],
+                Prefix=f"{config['S3_BACKUPS_ROOT_DIR']}/"
+            )
+            
+            compliance_data = {}
+            
+            # Process all files in S3
+            for obj in response.get('Contents', []):
+                key = obj['Key']
+                parts = key.split('/')
+                
+                # Check if the file is either operational_status.json or validation.json
+                if len(parts) == 5 and parts[-1] in ['operational_status.json', 'validation.json']:
+                    device_class, vendor, hostname = parts[1:4]
+                    file_type = parts[-1]
+                    
+                    # Get the file content
+                    file_content = get_s3_file_content(key)
+                    if file_content:
+                        # Initialize device entry if it doesn't exist
+                        if hostname not in compliance_data:
+                            compliance_data[hostname] = {
+                                'device_class': device_class,
+                                'vendor': vendor,
+                                'validation_data': {},
+                                'operational_status_data': {}
+                            }
+                        
+                        # Add file content to appropriate key
+                        if file_type == 'validation.json':
+                            compliance_data[hostname]['validation_data'] = file_content
+                        elif file_type == 'operational_status.json':
+                            compliance_data[hostname]['operational_status_data'] = file_content
+            
+            return compliance_data
+        except ClientError as e:
+            print(f"Error in get_s3_compliance_data: {str(e)}")
+            return {}
+
+def store_s3_data_in_redis(data, redis_key):
+    """Store data in Redis under specified key
+    
+    Args:
+        data (dict): Data to store in Redis
+        redis_key (str): Redis key under which to store the data
+    """
     with tracer.start_as_current_span("store_s3_data_in_redis"):
         try:
-            redis_client.set("s3_backups", json.dumps(s3_backups))
-            print(f"Stored data for {len(s3_backups)} devices in Redis")
+            redis_client.set(redis_key, json.dumps(data))
+            print(f"Stored {redis_key} data for {len(data)} devices in Redis")
         except redis.RedisError as e:
-            print(f"Error storing data in Redis: {str(e)}")
+            print(f"Error storing {redis_key} data in Redis: {str(e)}")
 
 def main():
+    """Main function - runs continuously and updates backup data"""
     while True:
         with tracer.start_as_current_span("s3_worker_main_loop"):
             s3_backups = get_s3_backups_data()
-            store_s3_data_in_redis(s3_backups)
+            s3_compliance = get_s3_compliance_data()
+            
+            store_s3_data_in_redis(s3_backups, "s3_backups")
+            store_s3_data_in_redis(s3_compliance, "s3_compliance")
+            
             time.sleep(600)  # Run every 10 minutes
 
 if __name__ == "__main__":
