@@ -16,4 +16,4 @@ services:
 networks:
   default:
     external: true
-    name: ${APP_NAME:-CodeHorizon}_${APP_ENV_NAME:-sbx00}_network
+    name: ${APP_NAME:-CodeHorizon}_${APP_ENV_NAME:-sbx}_network
