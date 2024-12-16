@@ -94,7 +94,8 @@ def backup_status_view():
             ),
         },
         hide_index=True,
-        key='backup_status_editor'
+        key='backup_status_editor',
+        use_container_width=True
     )
     
     # Display details for selected devices
