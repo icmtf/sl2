@@ -10,6 +10,8 @@ services:
       - FASTAPI_URL=http://fastapi:8000
       - REDIS_URL=redis://redis:6379
       - OTEL_EXPORTER_OTLP_ENDPOINT=http://jaeger:4317
+      - STREAMLIT_SERVER_ADDRESS=0.0.0.0
+      - STREAMLIT_SERVER_PORT=8501
     depends_on:
       - fastapi
       - redis
@@ -118,4 +120,3 @@ networks:
   default:
     external: true
     name: ${APP_NAME:-CodeHorizon}_${APP_ENV_NAME:-sbx00}_network
-
