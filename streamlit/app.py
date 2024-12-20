@@ -2,8 +2,9 @@ import streamlit as st
 from streamlit_option_menu import option_menu
 from views.backup_status.view import backup_status_view
 from views.compliance_status.view import compliance_status_view
-from views.device_details import device_details_view
 from views.global_overview import global_overview
+from views.remote_access.page1 import remote_access_page1
+from views.remote_access.page2 import remote_access_page2
 
 def main():
     # Set page config
@@ -46,8 +47,8 @@ def main():
         with st.sidebar:
             compliance_menu = option_menu(
                 menu_title="Compliance Views",
-                options=["Backup Status", "Compliance Status"],
-                icons=["hdd", "shield"],
+                options=["Backup Status", "Compliance Status", "Global Overview"],
+                icons=["hdd", "shield", "globe"],
                 default_index=0,
                 styles={
                     "container": {"padding": "5!important", "background-color": "#1e1e1e"},
@@ -71,13 +72,15 @@ def main():
             backup_status_view()
         elif compliance_menu == "Compliance Status":
             compliance_status_view()
+        elif compliance_menu == "Global Overview":
+            global_overview()
             
     else:  # Remote Access Status menu
         with st.sidebar:
             remote_menu = option_menu(
                 menu_title="Remote Access Views",
-                options=["Global Overview", "Device Details"],
-                icons=["globe", "pc"],
+                options=["Page 1", "Page 2"],
+                icons=["1-circle", "2-circle"],
                 default_index=0,
                 styles={
                     "container": {"padding": "5!important", "background-color": "#1e1e1e"},
@@ -97,10 +100,10 @@ def main():
             )
         
         # Content for remote access views
-        if remote_menu == "Global Overview":
-            global_overview()
-        elif remote_menu == "Device Details":
-            device_details_view()
+        if remote_menu == "Page 1":
+            remote_access_page1()
+        elif remote_menu == "Page 2":
+            remote_access_page2()
 
 if __name__ == "__main__":
     main()
