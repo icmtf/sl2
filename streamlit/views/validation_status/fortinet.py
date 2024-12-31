@@ -12,8 +12,8 @@ def format_validation_message(message):
         print(f"Error formatting message: {str(e)}")
         return message
 
-def cisco_validation_status_view():
-    st.title("Cisco Validation Status")
+def fortinet_validation_status_view():
+    st.title("Fortinet Validation Status")
     
     try:
         redis_client = redis.Redis(
@@ -28,12 +28,12 @@ def cisco_validation_status_view():
             st.warning("No validation data found in Redis")
             return
             
-        cisco_data = []
-        cisco_details = {}
+        fortinet_data = []
+        fortinet_details = {}
         
         for key in validation_keys:
             data = redis_client.hgetall(key)
-            if data.get('vendor') == 'Cisco':
+            if data.get('vendor') == 'Fortinet':
                 validation_data = json.loads(data.get('validation_data', '{}'))
                 device_id = key.split(':')[1]
                 
@@ -52,14 +52,14 @@ def cisco_validation_status_view():
                                 failed_checks[check_name] = check_data['message']
                 
                 row_data['Details'] = False
-                cisco_data.append(row_data)
-                cisco_details[device_id] = failed_checks
+                fortinet_data.append(row_data)
+                fortinet_details[device_id] = failed_checks
         
-        if not cisco_data:
-            st.warning("No Cisco devices found in validation data")
+        if not fortinet_data:
+            st.warning("No Fortinet devices found in validation data")
             return
             
-        df = pd.DataFrame(cisco_data)
+        df = pd.DataFrame(fortinet_data)
         
         status_columns = sorted([col for col in df.columns if col not in ['Device', 'Last Check', 'Details']])
         columns = ['Device', 'Last Check'] + status_columns + ['Details']
@@ -92,7 +92,7 @@ def cisco_validation_status_view():
         for index, row in edited_df.iterrows():
             if row['Details']:
                 device_id = row['Device']
-                failed_checks = cisco_details[device_id]
+                failed_checks = fortinet_details[device_id]
                 
                 st.write(f"### Details for {device_id}")
                 

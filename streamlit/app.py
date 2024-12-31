@@ -3,8 +3,8 @@ from streamlit_option_menu import option_menu
 from views.backup_status.view import backup_status_view
 from views.operational_status.view import compliance_status_view as operational_status_view
 from views.validation_status.view import validation_status_view
-from views.validation_status.cisco import page1_view
-from views.validation_status.page2 import page2_view
+from views.validation_status.cisco import cisco_validation_status_view
+from views.validation_status.fortinet import fortinet_validation_status_view
 from views.remote_access.page1 import remote_access_page1
 from views.remote_access.page2 import remote_access_page2
 from views.global_overview import global_overview
@@ -74,7 +74,7 @@ def main():
             if compliance_selected == "Validation Status":
                 validation_selected = option_menu(
                     menu_title=None,
-                    options=["Overview", "Cisco", "Page 2"],
+                    options=["Overview", "Cisco", "Fortinet"],
                     icons=["house", "1-circle", "2-circle"],
                     default_index=0,
                     styles={
@@ -108,9 +108,9 @@ def main():
             if not validation_selected or validation_selected == "Overview":
                 validation_status_view()
             elif validation_selected == "Cisco":
-                page1_view()
-            else:
-                page2_view()
+                cisco_validation_status_view()
+            elif validation_selected == "Fortinet":
+                fortinet_validation_status_view()
         elif compliance_selected == "Global Overview":
             global_overview()
             

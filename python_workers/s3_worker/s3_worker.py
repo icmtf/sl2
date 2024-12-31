@@ -125,7 +125,7 @@ def get_s3_backups_data():
             return {}
 
 def get_s3_validation_and_opstatus_data():
-    """Get validation data (operational_status.json and validation.json) from S3"""
+    """Get validation data (operational_status.json and config_validation.json) from S3"""
     with tracer.start_as_current_span("get_s3_validation_and_opstatus_data"):
         try:
             response = s3_client.list_objects_v2(
@@ -141,8 +141,8 @@ def get_s3_validation_and_opstatus_data():
                 key = obj['Key']
                 parts = key.split('/')
                 
-                # Check if the file is either operational_status.json or validation.json
-                if len(parts) == 5 and parts[-1] in ['operational_status.json', 'validation.json']:
+                # Check if the file is either operational_status.json or config_validation.json
+                if len(parts) == 5 and parts[-1] in ['operational_status.json', 'config_validation.json']:
                     device_class, vendor, hostname = parts[1:4]
                     file_type = parts[-1]
                     
@@ -164,7 +164,7 @@ def get_s3_validation_and_opstatus_data():
                             }
                         
                         # Add file content to appropriate key and dictionary
-                        if file_type == 'validation.json':
+                        if file_type == 'config_validation.json':
                             validation_data[hostname]['validation_data'] = file_content
                         elif file_type == 'operational_status.json':
                             opstatus_data[hostname]['operational_status_data'] = file_content
