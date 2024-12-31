@@ -134,7 +134,7 @@ def get_s3_validation_and_opstatus_data():
             )
             
             validation_data = {}
-            opstatus_data = {}
+            opstatus_data = []  # Changed to list to match new structure
             
             # Process all files in S3
             for obj in response.get('Contents', []):
@@ -149,30 +149,25 @@ def get_s3_validation_and_opstatus_data():
                     # Get the file content
                     file_content = get_s3_file_content(key)
                     if file_content:
-                        # Initialize device entry if it doesn't exist
+                        # Initialize validation entry if it doesn't exist
                         if hostname not in validation_data:
                             validation_data[hostname] = {
                                 'device_class': device_class,
                                 'vendor': vendor,
                                 'validation_data': {},
                             }
-                        if hostname not in opstatus_data:
-                            opstatus_data[hostname] = {
-                                'device_class': device_class,
-                                'vendor': vendor,
-                                'operational_status_data': {}
-                            }
                         
-                        # Add file content to appropriate key and dictionary
+                        # Handle the files based on their type
                         if file_type == 'config_validation.json':
                             validation_data[hostname]['validation_data'] = file_content
                         elif file_type == 'operational_status.json':
-                            opstatus_data[hostname]['operational_status_data'] = file_content
+                            # Add the operational status directly to the list
+                            opstatus_data.append(file_content)
             
             return validation_data, opstatus_data
         except ClientError as e:
             print(f"Error in get_s3_validation_and_opstatus_data: {str(e)}")
-            return {}, {}
+            return {}, []
 
 def store_s3_data_in_redis(data, redis_key_prefix):
     """Store data in Redis with proper key prefixes
@@ -183,6 +178,12 @@ def store_s3_data_in_redis(data, redis_key_prefix):
     """
     with tracer.start_as_current_span("store_s3_data_in_redis"):
         try:
+            # For operational status, store as a single JSON blob
+            if redis_key_prefix == "s3_opstatus":
+                redis_client.set(redis_key_prefix, json.dumps(data))
+                print(f"Stored operational status data in Redis")
+                return
+
             pipeline = redis_client.pipeline()
             
             # Clear existing keys with this prefix
@@ -197,11 +198,6 @@ def store_s3_data_in_redis(data, redis_key_prefix):
                     pipeline.hset(redis_key, mapping={
                         "vendor": device_data["vendor"],
                         "validation_data": json.dumps(device_data["validation_data"])
-                    })
-                elif redis_key_prefix == "s3_opstatus":
-                    pipeline.hset(redis_key, mapping={
-                        "vendor": device_data["vendor"],
-                        "operational_status_data": json.dumps(device_data["operational_status_data"])
                     })
                 else:  # s3_backups
                     pipeline.hset(redis_key, mapping={

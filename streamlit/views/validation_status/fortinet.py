@@ -7,6 +7,9 @@ import re
 def format_validation_message(message):
     """Wyświetl wiadomość jako blok kodu"""
     try:
+        # Remove quotes from message
+        if isinstance(message, str):
+            message = message.strip('"')
         return message
     except Exception as e:
         print(f"Error formatting message: {str(e)}")
@@ -44,12 +47,21 @@ def fortinet_validation_status_view():
                 
                 failed_checks = {}
                 
-                for check_name, check_data in validation_data.items():
+                # Przetwarzanie nowej struktury danych
+                config_validation = validation_data.get('config_validation', {})
+                for check_name, check_data in config_validation.items():
                     if isinstance(check_data, dict):
-                        if 'status' in check_data:
-                            row_data[check_name] = check_data['status']
-                            if check_data['status'] == 'KO':
-                                failed_checks[check_name] = check_data['message']
+                        status = check_data.get('status')
+                        if status:
+                            row_data[check_name] = status
+                            if status == 'KO':
+                                if check_name == 'snmp':
+                                    # Specjalna obsługa dla SNMP
+                                    message = "Community: " + check_data.get('message_community', '').strip('"')
+                                    message += "\nSysinfo: " + check_data.get('message_sysinfo', '').strip('"')
+                                    failed_checks[check_name] = message
+                                else:
+                                    failed_checks[check_name] = check_data.get('message', '')
                 
                 row_data['Details'] = False
                 fortinet_data.append(row_data)

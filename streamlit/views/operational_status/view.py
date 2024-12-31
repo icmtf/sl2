@@ -3,6 +3,7 @@ import pandas as pd
 import redis
 import json
 import os
+from datetime import datetime
 
 REDIS_URL = os.getenv('REDIS_URL', 'redis://redis:6379')
 redis_client = redis.Redis.from_url(REDIS_URL)
@@ -24,33 +25,76 @@ def load_devices_data():
         return []
 
 def load_opstatus_data():
+    """Load operational status data with new structure"""
     try:
         opstatus_data = redis_client.get("s3_opstatus")
         if opstatus_data:
-            return json.loads(opstatus_data)
+            data = json.loads(opstatus_data)
+            # Convert to hostname-keyed dictionary for easier lookup
+            return {item['hostname']: item for item in data} if isinstance(data, list) else data
         return {}
     except Exception as e:
         st.error(f"Error loading operational status data: {str(e)}")
         return {}
 
 def get_operational_status(hostname, opstatus_data, status_key):
-    """Get operational status for a specific key"""
+    """Get operational status for a specific key with new structure"""
     try:
         device_data = opstatus_data.get(hostname, {})
-        operational_data = device_data.get('operational_status_data', {})
-        return operational_data.get(status_key, {}).get('status', 'N/A')
+        operational_data = device_data.get('operational_status', {})
+        status_info = operational_data.get(status_key, {})
+        status = status_info.get('status', 'N/A')
+        message = status_info.get('message', '')
+        
+        # Clean up message format
+        message = message.strip('"')
+        if message in ['No message found', '', 'NA']:
+            message = ''
+            
+        return status, message
     except Exception:
-        return 'N/A'
+        return 'N/A', ''
 
-def display_device_details(device):
-    """Display only Device Details for a single device"""
+def get_colored_status(status):
+    """Convert status to colored text"""
+    if status == 'OK':
+        return '🟢'  # Zielony znacznik
+    elif status == 'KO':
+        return '🔴'  # Czerwony znacznik
+    elif status == 'NA':
+        return '⚫'  # Czarny znacznik
+    else:
+        return '⚪'  # Szary znacznik dla innych statusów
+
+def display_device_details(device, opstatus_data):
+    """Display detailed device information including operational status"""
     hostname = device['hostname']
+    device_opstatus = opstatus_data.get(hostname, {})
 
     with st.expander(f"🔍 {hostname}", expanded=False):
-        st.write("##### Device Details")
-        st.write(f"**Hostname:** {hostname}")
-        st.write(f"**IP Address:** {device.get('ip', 'N/A')}")
-        st.write(f"**Country:** {device.get('country', 'N/A')}")
+        col1, col2 = st.columns(2)
+        
+        with col1:
+            st.write("##### Device Details")
+            st.write(f"**Hostname:** {hostname}")
+            st.write(f"**IP Address:** {device.get('ip', 'N/A')}")
+            st.write(f"**Country:** {device.get('country', 'N/A')}")
+            st.write(f"**Vendor:** {device_opstatus.get('vendor', 'N/A')}")
+        
+        with col2:
+            st.write("##### Operational Status Details")
+            if 'operational_status' in device_opstatus:
+                last_update = device_opstatus.get('date', 'N/A')
+                st.write(f"**Last Updated:** {last_update}")
+                
+                for key, data in device_opstatus['operational_status'].items():
+                    status = data.get('status', 'N/A')
+                    message = data.get('message', '').strip('"')
+                    if message in ['No message found', '', 'NA']:
+                        message = 'No additional information'
+                    
+                    colored_status = get_colored_status(status)
+                    st.write(f"**{key}:** {colored_status} {status} _{message}_")
 
 def compliance_status_view():
     st.title('Operational Status')
@@ -64,11 +108,16 @@ def compliance_status_view():
     df = pd.DataFrame(devices)
     
     # Add operational status columns
-    operational_status_columns = ['SSH_port', 'HTTPS_port', 'SNMP', 'remote_auth']
+    operational_status_columns = ['SSH_port', 'HTTPS_port', 'SNMP', 'remote_auth', 'syslog']
+    
     for col in operational_status_columns:
+        # Get both status and message
         df[col] = df['hostname'].apply(
-            lambda x: get_operational_status(x, opstatus_data, col)
+            lambda x: get_operational_status(x, opstatus_data, col)[0]
         )
+        df[col + '_icon'] = df[col].apply(get_colored_status)
+        df[col] = df[col + '_icon'] + ' ' + df[col]
+        df = df.drop(col + '_icon', axis=1)
 
     display_cols = ['hostname', 'ip', 'country', 'device_class'] + operational_status_columns + ['Select']
  
@@ -88,10 +137,26 @@ def compliance_status_view():
             "ip": "IP Address", 
             "country": "Country",
             "device_class": "Device Class",
-            "SSH_port": "SSH Port Status",
-            "HTTPS_port": "HTTPS Port Status",
-            "SNMP": "SNMP Status",
-            "remote_auth": "Remote Auth Status"
+            "SSH_port": st.column_config.Column(
+                "SSH Port",
+                help="SSH Port Status"
+            ),
+            "HTTPS_port": st.column_config.Column(
+                "HTTPS Port",
+                help="HTTPS Port Status"
+            ),
+            "SNMP": st.column_config.Column(
+                "SNMP",
+                help="SNMP Status"
+            ),
+            "remote_auth": st.column_config.Column(
+                "Remote Auth",
+                help="Remote Authentication Status"
+            ),
+            "syslog": st.column_config.Column(
+                "Syslog",
+                help="Syslog Status"
+            )
         },
         hide_index=True,
         key='compliance_status_editor'
@@ -100,9 +165,9 @@ def compliance_status_view():
     # Display details for selected devices
     selected_rows = edited_df[edited_df['Select']]
     if not selected_rows.empty:
-        st.write("### Device Details")
+        st.write("### Selected Device Details")
         devices_dict = {device['hostname']: device for device in devices}
         for _, row in selected_rows.iterrows():
             hostname = row['hostname']
             if hostname in devices_dict:
-                display_device_details(devices_dict[hostname])
+                display_device_details(devices_dict[hostname], opstatus_data)
