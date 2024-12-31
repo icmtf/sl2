@@ -2,20 +2,18 @@ import streamlit as st
 from streamlit_option_menu import option_menu
 from views.backup_status.view import backup_status_view
 from views.operational_status.view import compliance_status_view as operational_status_view
-from views.global_overview import global_overview
+from views.validation_status.view import validation_status_view
+from views.validation_status.cisco import page1_view
+from views.validation_status.page2 import page2_view
 from views.remote_access.page1 import remote_access_page1
 from views.remote_access.page2 import remote_access_page2
+from views.global_overview import global_overview
 
 def main():
-    # Set page config
     st.set_page_config(page_title="CodeHorizon", layout="wide")
     
-    # Initialize session state if doesn't exist
-    if 'top_menu' not in st.session_state:
-        st.session_state['top_menu'] = 'Compliance Status'
-    
-    # Horizontal menu using streamlit-option-menu
-    selected_menu = option_menu(
+    # Main horizontal menu
+    main_selected = option_menu(
         menu_title=None,
         options=["Compliance Status", "Remote Access Status"],
         icons=["shield-check", "pc-display"],
@@ -33,22 +31,26 @@ def main():
                 "color": "#666",
             },
             "nav-link-selected": {
-                "background-color": "#1A1A1A",  # Ciemniejszy kolor tła dla aktywnego elementu
-                "color": "#2196F3",  # Ten sam niebieski co ikony
+                "background-color": "#1A1A1A",
+                "color": "#2196F3",
             }
         }
     )
     
-    # Update current menu in session state
-    st.session_state['top_menu'] = selected_menu
-    
-    # Sidebar menu based on main selection using streamlit-option-menu
-    if st.session_state['top_menu'] == "Compliance Status":
+    if main_selected == "Compliance Status":
         with st.sidebar:
-            side_menu_compliance_status = option_menu(
+            # CSS for side menu
+            st.markdown("""
+                <style>
+                div[data-testid="stVerticalBlock"] div:has(div.stButton) {padding: 0;}
+                </style>
+            """, unsafe_allow_html=True)
+
+            # Main side menu
+            compliance_selected = option_menu(
                 menu_title="Compliance Views",
-                options=["Backup Status", "Operational Status", "Global Overview"],
-                icons=["hdd", "shield", "globe"],
+                options=["Backup Status", "Operational Status", "Validation Status", "Global Overview"],
+                icons=["hdd", "shield", "check-circle", "globe"],
                 default_index=0,
                 styles={
                     "container": {"padding": "5!important", "background-color": "#1e1e1e"},
@@ -61,23 +63,60 @@ def main():
                         "color": "#666",
                     },
                     "nav-link-selected": {
-                        "background-color": "#1A1A1A",  # Ciemniejszy kolor tła dla aktywnego elementu
-                        "color": "#2196F3",  # Ten sam niebieski co ikony
+                        "background-color": "#1A1A1A",
+                        "color": "#2196F3",
                     }
                 }
             )
-            
-        # Content for compliance views
-        if side_menu_compliance_status == "Backup Status":
+
+            # Submenu for Validation Status
+            validation_selected = None
+            if compliance_selected == "Validation Status":
+                validation_selected = option_menu(
+                    menu_title=None,
+                    options=["Overview", "Cisco", "Page 2"],
+                    icons=["house", "1-circle", "2-circle"],
+                    default_index=0,
+                    styles={
+                        "container": {
+                            "padding": "0!important", 
+                            "background-color": "transparent",
+                            "margin-left": "1rem"
+                        },
+                        "icon": {"color": "#2196F3", "font-size": "13px"},
+                        "nav-link": {
+                            "font-size": "14px",
+                            "text-align": "left",
+                            "margin": "0px",
+                            "--hover-color": "#333",
+                            "color": "#666",
+                            "padding": "0.5rem 1rem",
+                        },
+                        "nav-link-selected": {
+                            "background-color": "#1A1A1A",
+                            "color": "#2196F3",
+                        }
+                    }
+                )
+        
+        # Rendering appropriate views
+        if compliance_selected == "Backup Status":
             backup_status_view()
-        elif side_menu_compliance_status == "Operational Status":
+        elif compliance_selected == "Operational Status":
             operational_status_view()
-        elif side_menu_compliance_status == "Global Overview":
+        elif compliance_selected == "Validation Status":
+            if not validation_selected or validation_selected == "Overview":
+                validation_status_view()
+            elif validation_selected == "Cisco":
+                page1_view()
+            else:
+                page2_view()
+        elif compliance_selected == "Global Overview":
             global_overview()
             
-    else:  # Remote Access Status menu
+    else:  # Remote Access Status
         with st.sidebar:
-            side_menu_remote_access_status = option_menu(
+            remote_selected = option_menu(
                 menu_title="Remote Access Views",
                 options=["Page 1", "Page 2"],
                 icons=["1-circle", "2-circle"],
@@ -93,16 +132,15 @@ def main():
                         "color": "#666",
                     },
                     "nav-link-selected": {
-                        "background-color": "#1A1A1A",  # Ciemniejszy kolor tła dla aktywnego elementu
-                        "color": "#2196F3",  # Ten sam niebieski co ikony
+                        "background-color": "#1A1A1A",
+                        "color": "#2196F3",
                     }
                 }
             )
         
-        # Content for remote access views
-        if side_menu_remote_access_status == "Page 1":
+        if remote_selected == "Page 1":
             remote_access_page1()
-        elif side_menu_remote_access_status == "Page 2":
+        else:
             remote_access_page2()
 
 if __name__ == "__main__":

@@ -174,19 +174,46 @@ def get_s3_validation_and_opstatus_data():
             print(f"Error in get_s3_validation_and_opstatus_data: {str(e)}")
             return {}, {}
 
-def store_s3_data_in_redis(data, redis_key):
-    """Store data in Redis under specified key
+def store_s3_data_in_redis(data, redis_key_prefix):
+    """Store data in Redis with proper key prefixes
     
     Args:
         data (dict): Data to store in Redis
-        redis_key (str): Redis key under which to store the data
+        redis_key_prefix (str): Prefix for Redis keys (e.g., "s3_validation")
     """
     with tracer.start_as_current_span("store_s3_data_in_redis"):
         try:
-            redis_client.set(redis_key, json.dumps(data))
-            print(f"Stored {redis_key} data for {len(data)} devices in Redis")
+            pipeline = redis_client.pipeline()
+            
+            # Clear existing keys with this prefix
+            existing_keys = redis_client.keys(f"{redis_key_prefix}:*")
+            if existing_keys:
+                pipeline.delete(*existing_keys)
+            
+            # Store new data
+            for hostname, device_data in data.items():
+                redis_key = f"{redis_key_prefix}:{hostname}"
+                if redis_key_prefix == "s3_validation":
+                    pipeline.hset(redis_key, mapping={
+                        "vendor": device_data["vendor"],
+                        "validation_data": json.dumps(device_data["validation_data"])
+                    })
+                elif redis_key_prefix == "s3_opstatus":
+                    pipeline.hset(redis_key, mapping={
+                        "vendor": device_data["vendor"],
+                        "operational_status_data": json.dumps(device_data["operational_status_data"])
+                    })
+                else:  # s3_backups
+                    pipeline.hset(redis_key, mapping={
+                        "vendor": device_data["vendor"],
+                        "backup_data": json.dumps(device_data)
+                    })
+            
+            # Execute all commands
+            pipeline.execute()
+            print(f"Stored {redis_key_prefix} data for {len(data)} devices in Redis")
         except redis.RedisError as e:
-            print(f"Error storing {redis_key} data in Redis: {str(e)}")
+            print(f"Error storing {redis_key_prefix} data in Redis: {str(e)}")
 
 def main():
     """Main function - runs continuously and updates backup data"""
