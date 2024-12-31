@@ -1,7 +1,7 @@
 import streamlit as st
 from streamlit_option_menu import option_menu
 from views.backup_status.view import backup_status_view
-from views.compliance_status.view import compliance_status_view
+from views.operational_status.view import compliance_status_view as operational_status_view
 from views.global_overview import global_overview
 from views.remote_access.page1 import remote_access_page1
 from views.remote_access.page2 import remote_access_page2
@@ -11,8 +11,8 @@ def main():
     st.set_page_config(page_title="CodeHorizon", layout="wide")
     
     # Initialize session state if doesn't exist
-    if 'current_menu' not in st.session_state:
-        st.session_state['current_menu'] = 'Compliance Status'
+    if 'top_menu' not in st.session_state:
+        st.session_state['top_menu'] = 'Compliance Status'
     
     # Horizontal menu using streamlit-option-menu
     selected_menu = option_menu(
@@ -40,14 +40,14 @@ def main():
     )
     
     # Update current menu in session state
-    st.session_state['current_menu'] = selected_menu
+    st.session_state['top_menu'] = selected_menu
     
     # Sidebar menu based on main selection using streamlit-option-menu
-    if st.session_state['current_menu'] == "Compliance Status":
+    if st.session_state['top_menu'] == "Compliance Status":
         with st.sidebar:
-            compliance_menu = option_menu(
+            side_menu_compliance_status = option_menu(
                 menu_title="Compliance Views",
-                options=["Backup Status", "Compliance Status", "Global Overview"],
+                options=["Backup Status", "Operational Status", "Global Overview"],
                 icons=["hdd", "shield", "globe"],
                 default_index=0,
                 styles={
@@ -68,16 +68,16 @@ def main():
             )
             
         # Content for compliance views
-        if compliance_menu == "Backup Status":
+        if side_menu_compliance_status == "Backup Status":
             backup_status_view()
-        elif compliance_menu == "Compliance Status":
-            compliance_status_view()
-        elif compliance_menu == "Global Overview":
+        elif side_menu_compliance_status == "Operational Status":
+            operational_status_view()
+        elif side_menu_compliance_status == "Global Overview":
             global_overview()
             
     else:  # Remote Access Status menu
         with st.sidebar:
-            remote_menu = option_menu(
+            side_menu_remote_access_status = option_menu(
                 menu_title="Remote Access Views",
                 options=["Page 1", "Page 2"],
                 icons=["1-circle", "2-circle"],
@@ -100,9 +100,9 @@ def main():
             )
         
         # Content for remote access views
-        if remote_menu == "Page 1":
+        if side_menu_remote_access_status == "Page 1":
             remote_access_page1()
-        elif remote_menu == "Page 2":
+        elif side_menu_remote_access_status == "Page 2":
             remote_access_page2()
 
 if __name__ == "__main__":

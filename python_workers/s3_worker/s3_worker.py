@@ -124,16 +124,17 @@ def get_s3_backups_data():
             print(f"Error in get_s3_backups_data: {str(e)}")
             return {}
 
-def get_s3_compliance_data():
-    """Get compliance data (operational_status.json and validation.json) from S3"""
-    with tracer.start_as_current_span("get_s3_compliance_data"):
+def get_s3_validation_and_opstatus_data():
+    """Get validation data (operational_status.json and validation.json) from S3"""
+    with tracer.start_as_current_span("get_s3_validation_and_opstatus_data"):
         try:
             response = s3_client.list_objects_v2(
                 Bucket=config['S3_BUCKET'],
                 Prefix=f"{config['S3_BACKUPS_ROOT_DIR']}/"
             )
             
-            compliance_data = {}
+            validation_data = {}
+            opstatus_data = {}
             
             # Process all files in S3
             for obj in response.get('Contents', []):
@@ -149,24 +150,29 @@ def get_s3_compliance_data():
                     file_content = get_s3_file_content(key)
                     if file_content:
                         # Initialize device entry if it doesn't exist
-                        if hostname not in compliance_data:
-                            compliance_data[hostname] = {
+                        if hostname not in validation_data:
+                            validation_data[hostname] = {
                                 'device_class': device_class,
                                 'vendor': vendor,
                                 'validation_data': {},
+                            }
+                        if hostname not in opstatus_data:
+                            opstatus_data[hostname] = {
+                                'device_class': device_class,
+                                'vendor': vendor,
                                 'operational_status_data': {}
                             }
                         
-                        # Add file content to appropriate key
+                        # Add file content to appropriate key and dictionary
                         if file_type == 'validation.json':
-                            compliance_data[hostname]['validation_data'] = file_content
+                            validation_data[hostname]['validation_data'] = file_content
                         elif file_type == 'operational_status.json':
-                            compliance_data[hostname]['operational_status_data'] = file_content
+                            opstatus_data[hostname]['operational_status_data'] = file_content
             
-            return compliance_data
+            return validation_data, opstatus_data
         except ClientError as e:
-            print(f"Error in get_s3_compliance_data: {str(e)}")
-            return {}
+            print(f"Error in get_s3_validation_and_opstatus_data: {str(e)}")
+            return {}, {}
 
 def store_s3_data_in_redis(data, redis_key):
     """Store data in Redis under specified key
@@ -187,10 +193,11 @@ def main():
     while True:
         with tracer.start_as_current_span("s3_worker_main_loop"):
             s3_backups = get_s3_backups_data()
-            s3_compliance = get_s3_compliance_data()
+            s3_validation, s3_opstatus = get_s3_validation_and_opstatus_data()
             
             store_s3_data_in_redis(s3_backups, "s3_backups")
-            store_s3_data_in_redis(s3_compliance, "s3_compliance")
+            store_s3_data_in_redis(s3_validation, "s3_validation")
+            store_s3_data_in_redis(s3_opstatus, "s3_opstatus")
             
             time.sleep(600)  # Run every 10 minutes
 

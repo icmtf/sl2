@@ -23,20 +23,20 @@ def load_devices_data():
         st.error(f"Error loading devices data: {str(e)}")
         return []
 
-def load_compliance_data():
+def load_opstatus_data():
     try:
-        compliance_data = redis_client.get("s3_compliance")
-        if compliance_data:
-            return json.loads(compliance_data)
+        opstatus_data = redis_client.get("s3_opstatus")
+        if opstatus_data:
+            return json.loads(opstatus_data)
         return {}
     except Exception as e:
-        st.error(f"Error loading compliance data: {str(e)}")
+        st.error(f"Error loading operational status data: {str(e)}")
         return {}
 
-def get_operational_status(hostname, compliance_data, status_key):
+def get_operational_status(hostname, opstatus_data, status_key):
     """Get operational status for a specific key"""
     try:
-        device_data = compliance_data.get(hostname, {})
+        device_data = opstatus_data.get(hostname, {})
         operational_data = device_data.get('operational_status_data', {})
         return operational_data.get(status_key, {}).get('status', 'N/A')
     except Exception:
@@ -53,9 +53,9 @@ def display_device_details(device):
         st.write(f"**Country:** {device.get('country', 'N/A')}")
 
 def compliance_status_view():
-    st.title('Compliance Status')
+    st.title('Operational Status')
     devices = load_devices_data()
-    compliance_data = load_compliance_data()
+    opstatus_data = load_opstatus_data()
     
     if not devices:
         st.warning("No devices data available")
@@ -67,7 +67,7 @@ def compliance_status_view():
     operational_status_columns = ['SSH_port', 'HTTPS_port', 'SNMP', 'remote_auth']
     for col in operational_status_columns:
         df[col] = df['hostname'].apply(
-            lambda x: get_operational_status(x, compliance_data, col)
+            lambda x: get_operational_status(x, opstatus_data, col)
         )
 
     display_cols = ['hostname', 'ip', 'country', 'device_class'] + operational_status_columns + ['Select']
