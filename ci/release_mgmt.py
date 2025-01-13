@@ -68,7 +68,7 @@ def main(current_branch: Optional[str], target_branch: Optional[str],
                     next_action = show_pr_creation_summary(pr_url)
                     if next_action == 'Exit':
                         break
-                    # dla 'Create another PR' kontynuujemy pętlę
+                    # for 'Create another PR' continue the loop
         else:  # Exit
             break
 

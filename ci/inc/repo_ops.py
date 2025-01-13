@@ -128,11 +128,11 @@ def create_pull_request(config) -> Tuple[bool, Optional[str]]:
             )
 
             if 200 <= response.status_code < 300:
-                pr_data = response.json()
-                pr_url = pr_data.get('links', {}).get('html', {}).get('href')
-                
-                # Wyświetlamy wyraźne podsumowanie w ramce
-                summary = f"""
+                try:
+                    pr_data = response.json()
+                    pr_url = pr_data.get('links', {}).get('self', [])[0].get('href') if pr_data.get('links', {}).get('self') else None
+
+                    summary = f"""
 [bold green]✓ Pull Request created successfully![/]
 
 Source Branch: {config.get_option('current_branch')}
@@ -140,13 +140,18 @@ Target Branch: {config.get_option('target_branch')}
 Title: {config.get_option('pr_title')}
 
 [blue underline]PR URL: {pr_url}[/]
-                """
-                console.print(Panel(summary, title="Pull Request Status", border_style="green"))
-                
-                # Dodajemy wyraźną informację o kontynuacji
-                console.print("\n[yellow]Press Enter to continue...[/]")
-                input()
-                return True, pr_url
+                    """
+                    console.print(Panel(summary, title="Pull Request Status", border_style="green"))
+                    
+                    console.print("\n[yellow]Press Enter to continue...[/]")
+                    input()
+                    return True, pr_url
+                    
+                except Exception as e:
+                    console.print(f"\n[yellow]Warning: PR was created but there was an error processing the response: {str(e)}[/]")
+                    # Fallback URL construction
+                    pr_url = f"{driver.base_url}/projects/{driver.workspace}/repos/{driver.repo_slug}/pull-requests/"
+                    return True, pr_url
             else:
                 error_msg = f"""
 [bold red]Error {response.status_code}![/]
