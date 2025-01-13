@@ -3,7 +3,7 @@ class BitbucketDriver:
         self.workspace = workspace  # w Bitbucket Server to będzie project_key
         self.repo_slug = repo_slug
         self.base_url = base_url
-        self.platform_name = "Bitbucket Server"
+        self.platform_name = "Bitbucket Server Data Center"
 
     def prepare_pr_payload(self, source_branch: str, target_branch: str, title: str, description: str, **kwargs):
         """
