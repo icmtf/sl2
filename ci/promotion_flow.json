@@ -1,0 +1,13 @@
+{
+    "environments": {
+        "sandbox": ["sbx01", "sbx02", "sbx03"],
+        "development": ["dev01"],
+        "uat": ["uat01"]
+    },
+    "promotion_rules": {
+        "sbx01": ["dev01"],
+        "sbx02": ["dev01"],
+        "sbx03": ["dev01"],
+        "dev01": ["uat01"]
+    }
+}
