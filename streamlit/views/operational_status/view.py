@@ -71,7 +71,7 @@ def display_device_details(device, opstatus_data):
     hostname = device['hostname']
     device_opstatus = opstatus_data.get(hostname, {})
 
-    with st.expander(f"🔍 {hostname}", expanded=False):
+    with st.expander(f"🔍 {hostname} ({device.get('ip', 'N/A')})", expanded=False):
         col1, col2 = st.columns(2)
         
         with col1:
@@ -94,7 +94,7 @@ def display_device_details(device, opstatus_data):
                         message = 'No additional information'
                     
                     colored_status = get_colored_status(status)
-                    st.write(f"**{key}:** {colored_status} {status} _{message}_")
+                    st.write(f"**{key}:** {colored_status} ({status}) _{message}_")
 
 def compliance_status_view():
     st.title('Operational Status')
@@ -107,26 +107,78 @@ def compliance_status_view():
         
     df = pd.DataFrame(devices)
     
+    # Add vendor from opstatus_data
+    df['vendor'] = df['hostname'].apply(lambda x: opstatus_data.get(x, {}).get('vendor', 'N/A'))
+    
+    # Sidebar filters
+    st.sidebar.header("Filters")
+    
+    # Country filter
+    countries = sorted(df['country'].unique().tolist())
+    selected_countries = st.sidebar.multiselect(
+        "Select Countries",
+        countries,
+        default=[]
+    )
+    
+    # Device Class filter
+    device_classes = sorted(df['device_class'].unique().tolist())
+    selected_device_classes = st.sidebar.multiselect(
+        "Select Device Classes",
+        device_classes,
+        default=[]
+    )
+    
+    # Vendor filter
+    vendors = sorted(df['vendor'].unique().tolist())
+    selected_vendors = st.sidebar.multiselect(
+        "Select Vendors",
+        vendors,
+        default=[]
+    )
+    
+    # Apply filters
+    mask = pd.Series([True] * len(df))
+    
+    if selected_countries:
+        mask &= df['country'].isin(selected_countries)
+    
+    if selected_device_classes:
+        mask &= df['device_class'].isin(selected_device_classes)
+    
+    if selected_vendors:
+        mask &= df['vendor'].isin(selected_vendors)
+        
+    # Filter the DataFrame
+    filtered_df = df[mask].copy()
+    
     # Add operational status columns
     operational_status_columns = ['SSH_port', 'HTTPS_port', 'SNMP', 'remote_auth', 'syslog']
     
     for col in operational_status_columns:
         # Get both status and message
-        df[col] = df['hostname'].apply(
+        filtered_df[col] = filtered_df['hostname'].apply(
             lambda x: get_operational_status(x, opstatus_data, col)[0]
         )
-        df[col + '_icon'] = df[col].apply(get_colored_status)
-        df[col] = df[col + '_icon'] + ' ' + df[col]
-        df = df.drop(col + '_icon', axis=1)
+        filtered_df[col + '_icon'] = filtered_df[col].apply(get_colored_status)
+        filtered_df[col] = filtered_df[col + '_icon'] + ' ' + filtered_df[col]
+        filtered_df = filtered_df.drop(col + '_icon', axis=1)
 
-    display_cols = ['hostname', 'ip', 'country', 'device_class'] + operational_status_columns + ['Select']
+    # Define column order with vendor added between device_class and SSH_port
+    display_cols = [
+        'hostname', 
+        'ip', 
+        'country', 
+        'device_class',
+        'vendor'
+    ] + operational_status_columns + ['Select']
  
     # Add Select column for details
-    df['Select'] = False
+    filtered_df['Select'] = False
 
     # Show data editor
     edited_df = st.data_editor(
-        df[display_cols],
+        filtered_df[display_cols],
         column_config={
             "Select": st.column_config.CheckboxColumn(
                 "Details", 
@@ -137,6 +189,7 @@ def compliance_status_view():
             "ip": "IP Address", 
             "country": "Country",
             "device_class": "Device Class",
+            "vendor": "Vendor",
             "SSH_port": st.column_config.Column(
                 "SSH Port",
                 help="SSH Port Status"

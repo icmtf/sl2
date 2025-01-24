@@ -43,18 +43,28 @@ def load_backup_data():
         st.error(f"Error loading backup data: {str(e)}")
         return {}
 
-def display_device_details(device):
-    """Display only Device Details for a single device"""
+def display_device_details(device, backups):
+    """Display Device Details and backup.json for a single device"""
     hostname = device['hostname']
 
-    with st.expander(f"🔍 {hostname}", expanded=False):
+    with st.expander(f"🔍 {hostname} ({device.get('ip', 'N/A')})", expanded=False):
         st.write("##### Device Details")
         st.write(f"**Hostname:** {hostname}")
         st.write(f"**IP Address:** {device.get('ip', 'N/A')}")
         st.write(f"**Country:** {device.get('country', 'N/A')}")
+        
+        # Add backup.json button with popover
+        if hostname in backups:
+            backup_data = backups[hostname]
+            with st.popover("📄 backup.json"):
+                st.json(backup_data)
+        else:
+            st.button("📄 backup.json", disabled=True, help="No backup.json available")
 
 def backup_status_view():
     st.title('Backup Status')
+    
+    # Load data
     devices = load_devices_data()
     backups = load_backup_data()
     
@@ -62,29 +72,99 @@ def backup_status_view():
         st.warning("No devices data available")
         return
     
+    # Create DataFrame
     df = pd.DataFrame(devices)
+    
+    # Sidebar filters
+    st.sidebar.header("Filters")
+    
+    # Country filter
+    countries = sorted(df['country'].unique().tolist())
+    selected_countries = st.sidebar.multiselect(
+        "Select Countries",
+        countries,
+        default=[]
+    )
+    
+    # Device Class filter
+    device_classes = sorted(df['device_class'].unique().tolist())
+    selected_device_classes = st.sidebar.multiselect(
+        "Select Device Classes",
+        device_classes,
+        default=[]
+    )
+    
+    # Vendor filter
+    vendors = sorted(df['vendor'].unique().tolist())
+    selected_vendors = st.sidebar.multiselect(
+        "Select Vendors",
+        vendors,
+        default=[]
+    )
+    
+    # Backup Status filter
+    backup_statuses = ['OK', 'Warning', 'Attention', 'Severe', 'Critical', 'Failure', 'Bad date format', 'Bad backup.json', 'No backup.json']
+    selected_backup_statuses = st.sidebar.multiselect(
+        "Select Backup Statuses",
+        backup_statuses,
+        default=[]
+    )
+    
+    # Apply filters
+    mask = pd.Series([True] * len(df))
+    
+    if selected_countries:
+        mask &= df['country'].isin(selected_countries)
+    
+    if selected_device_classes:
+        mask &= df['device_class'].isin(selected_device_classes)
+    
+    if selected_vendors:
+        mask &= df['vendor'].isin(selected_vendors)
+        
+    # Filter the DataFrame
+    filtered_df = df[mask].copy()
+    
+    # Add backup status column
+    filtered_df['backup_status_column'] = filtered_df['hostname'].apply(
+        lambda x: format_backup_status_value(x, backups)
+    )
+    
+    # Apply backup status filter if selected
+    if selected_backup_statuses:
+        backup_mask = filtered_df['backup_status_column'].apply(
+            lambda x: any(status in x for status in selected_backup_statuses)
+        )
+        filtered_df = filtered_df[backup_mask]
 
     # Create and display charts side by side
     col1, col2 = st.columns(2)
     
     with col1:
-        pie_chart = create_backup_status_pie_chart(df, backups)
+        pie_chart = create_backup_status_pie_chart(filtered_df, backups)
         st.plotly_chart(pie_chart, use_container_width=True)
     
     with col2:
-        bar_chart = create_backup_status_bar_chart(df, backups)
+        bar_chart = create_backup_status_bar_chart(filtered_df, backups)
         st.plotly_chart(bar_chart, use_container_width=True)
     
-    df['backup_status_column'] = df['hostname'].apply(lambda x: format_backup_status_value(x, backups))
-    # Select columns to display
-    display_cols = ['hostname', 'ip', 'country', 'device_class', 'backup_status_column', 'Select']
+    # Select columns to display and their order
+    display_cols = [
+        'hostname', 
+        'ip', 
+        'country', 
+        'device_class',
+        'vendor',  # New column
+        'backup_status_column', 
+        'Select'
+    ]
     
     # Add Select column for details
-    df['Select'] = False
+    filtered_df['Select'] = False
 
     # Show data editor
     edited_df = st.data_editor(
-        df[display_cols],
+        filtered_df[display_cols],
         column_config={
             "Select": st.column_config.CheckboxColumn(
                 "Details", 
@@ -95,9 +175,14 @@ def backup_status_view():
             "ip": "IP Address", 
             "country": "Country",
             "device_class": "Device Class",
-             "backup_status_column": st.column_config.Column(
+            "vendor": "Vendor",  # New column configuration
+            "backup_status_column": st.column_config.Column(
                 "Backup Status",
-                help=f"{get_emoji_color(1)} more than 1 x max_age\n{get_emoji_color(2)} more than 2 x max_age\n{get_emoji_color(3)} more than 3 x max_age\n{get_emoji_color(4)} more than 4 x max_age\n{get_emoji_color(5)} more than 5 x max_age",
+                help=f"{get_emoji_color(1)} more than 1 x max_age\n"
+                     f"{get_emoji_color(2)} more than 2 x max_age\n"
+                     f"{get_emoji_color(3)} more than 3 x max_age\n"
+                     f"{get_emoji_color(4)} more than 4 x max_age\n"
+                     f"{get_emoji_color(5)} more than 5 x max_age",
             ),
         },
         hide_index=True,
@@ -113,4 +198,4 @@ def backup_status_view():
         for _, row in selected_rows.iterrows():
             hostname = row['hostname']
             if hostname in devices_dict:
-                display_device_details(devices_dict[hostname])
+                display_device_details(devices_dict[hostname], backups)
