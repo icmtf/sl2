@@ -10,6 +10,15 @@ nav:
   - About: about.md
   - Architecture: architecture.md
   - Development workflow: development_workflow.md
+  - Development workflow v2: development_workflow_v2.md
+  - Views Logic:
+    - Compliance Status:
+      - Backup Status: views_logic/compliance_status/backup_status.md
+      - Operational Status: views_logic/compliance_status/operational_status.md
+      - Validation Status: views_logic/compliance_status/validation_status.md
+    - Remote Access Status:
+      - Page 1: views_logic/remote_access/page1.md
+      - Page 2: views_logic/remote_access/page2.md
 markdown_extensions:
   - pymdownx.superfences:
       custom_fences:

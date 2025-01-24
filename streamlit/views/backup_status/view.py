@@ -28,10 +28,17 @@ def load_devices_data():
 
 def load_backup_data():
     try:
-        backup_data = redis_client.get("s3_backups")
-        if backup_data:
-            return json.loads(backup_data)
-        return {}
+        backups = {}
+        backup_keys = redis_client.keys("s3_backups:*")
+        
+        for key in backup_keys:
+            backup_data = redis_client.hgetall(key)
+            if backup_data:
+                hostname = key.decode().split(':')[1]
+                backup_json = json.loads(backup_data[b'backup_data'])
+                backups[hostname] = backup_json
+        
+        return backups
     except Exception as e:
         st.error(f"Error loading backup data: {str(e)}")
         return {}

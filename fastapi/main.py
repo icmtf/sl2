@@ -75,8 +75,14 @@ async def get_devices_backup_status():
                     device = json.loads(device_data)
                     devices[device['hostname']] = device
 
-            backups_data = redis_client.get("s3_backups")
-            backups = json.loads(backups_data) if backups_data else {}
+            backups = {}
+            backup_keys = redis_client.keys("s3_backups:*")
+            for key in backup_keys:
+                hostname = key.decode().split(':')[1]
+                backup_data = redis_client.hgetall(key)
+                if backup_data and b'backup_data' in backup_data:
+                    backup_info = json.loads(backup_data[b'backup_data'].decode())
+                    backups[hostname] = backup_info
 
             combined_data = []
             for hostname, device in devices.items():

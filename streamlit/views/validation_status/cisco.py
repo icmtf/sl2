@@ -56,7 +56,7 @@ def cisco_validation_status_view():
                             row_data[check_name] = status
                             if status == 'KO':
                                 if check_name == 'snmp':
-                                    # Specjalna obsługa dla SNMP
+                                    # Special handling for SNMP
                                     message = "Community: " + check_data.get('message_community', '').strip('"')
                                     message += "\nSysinfo: " + check_data.get('message_sysinfo', '').strip('"')
                                     failed_checks[check_name] = message

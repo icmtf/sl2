@@ -58,13 +58,13 @@ def get_operational_status(hostname, opstatus_data, status_key):
 def get_colored_status(status):
     """Convert status to colored text"""
     if status == 'OK':
-        return '🟢'  # Zielony znacznik
+        return '🟢'  # Green marker
     elif status == 'KO':
-        return '🔴'  # Czerwony znacznik
+        return '🔴'  # Red marker
     elif status == 'NA':
-        return '⚫'  # Czarny znacznik
+        return '⚫'  # Black marker
     else:
-        return '⚪'  # Szary znacznik dla innych statusów
+        return '⚪'  # Gray marker for other statuses
 
 def display_device_details(device, opstatus_data):
     """Display detailed device information including operational status"""
