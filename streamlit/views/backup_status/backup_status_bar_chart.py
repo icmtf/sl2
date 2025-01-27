@@ -24,7 +24,7 @@ def backup_status_bar_chart_value(hostname: str, backups: dict) -> int:
     if valid_schema is False or valid_schema is None:
         return -2
 
-    backup_list = backup_info['backup_json_data']['backup_list']
+    backup_list = backup_info.get('backup_json_data', {}).get('backup_list', [])
     worst_age_status = 0
 
     for backup in backup_list:
@@ -45,12 +45,16 @@ def create_backup_status_bar_chart(df, backups):
     data = []
     for _, row in df.iterrows():
         status = backup_status_bar_chart_value(row['hostname'], backups)
+        vendor = backups.get(row['hostname'], {}).get('vendor', 'Unknown')  # Pobierz vendor z backups albo ustaw 'Unknown'
         data.append({
-            'Vendor': row['vendor'],
+            'Vendor': vendor,
             'Status': status
         })
     
     status_df = pd.DataFrame(data)
+    
+    # Replace None values with 'Unknown' in Vendor column
+    status_df['Vendor'] = status_df['Vendor'].fillna('Unknown')
     
     # Create status counts by vendor
     vendor_status_counts = status_df.groupby(['Vendor', 'Status']).size().reset_index(name='Count')

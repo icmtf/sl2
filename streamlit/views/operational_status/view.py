@@ -114,7 +114,7 @@ def compliance_status_view():
     st.sidebar.header("Filters")
     
     # Country filter
-    countries = sorted(df['country'].unique().tolist())
+    countries = sorted([c for c in df['country'].unique().tolist() if c is not None])
     selected_countries = st.sidebar.multiselect(
         "Select Countries",
         countries,
@@ -122,7 +122,7 @@ def compliance_status_view():
     )
     
     # Device Class filter
-    device_classes = sorted(df['device_class'].unique().tolist())
+    device_classes = sorted([d for d in df['device_class'].unique().tolist() if d is not None])
     selected_device_classes = st.sidebar.multiselect(
         "Select Device Classes",
         device_classes,
@@ -130,7 +130,7 @@ def compliance_status_view():
     )
     
     # Vendor filter
-    vendors = sorted(df['vendor'].unique().tolist())
+    vendors = sorted([v for v in df['vendor'].unique().tolist() if v is not None])
     selected_vendors = st.sidebar.multiselect(
         "Select Vendors",
         vendors,
