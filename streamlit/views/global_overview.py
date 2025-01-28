@@ -191,7 +191,8 @@ def create_distribution_charts(devices_df, backups):
 
 def global_overview():
     """Main function for Global Overview view"""
-    st.write("## Network Devices Global Overview")
+    st.write("## Network Devices Global Overview [WiP]")
+    st.markdown("This space is <span style='color:red'>**Work in Progress**</span>, it is going to be updated soon but it's sole purpose is to demonstrate and test abilites and features.", unsafe_allow_html=True)
     
     # Initialization of session state
     if 'selected_country' not in st.session_state:
@@ -244,20 +245,20 @@ def global_overview():
                             else 0)
             
             selected_country = st.selectbox(
-                'Select country:',
+                'Select Country:',
                 available_countries,
                 index=selected_index
             )
             
             st.write("### Filters")
             device_types = st.multiselect(
-                'Device Types:',
+                'Device Type:',
                 DEVICE_TYPES,
                 default=st.session_state.device_types
             )
             
             vendors = st.multiselect(
-                'Vendors:',
+                'Select Vendor:',
                 VENDORS,
                 default=st.session_state.vendors
             )

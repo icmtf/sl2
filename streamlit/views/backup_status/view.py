@@ -3,6 +3,7 @@ import pandas as pd
 import redis
 import json
 import os
+from streamlit_dynamic_filters import DynamicFilters
 from views.backup_status.backup_status_column import format_backup_status_value, get_emoji_color
 from views.backup_status.backup_status_pie_chart import create_backup_status_pie_chart
 from views.backup_status.backup_status_bar_chart import create_backup_status_bar_chart
@@ -51,15 +52,21 @@ def display_device_details(device, backups):
         st.write("##### Device Details")
         st.write(f"**Hostname:** {hostname}")
         st.write(f"**IP Address:** {device.get('ip', 'N/A')}")
-        st.write(f"**Country:** {device.get('country', 'N/A')}")
+        st.write(f"**Country:** {device.get('Country', 'N/A')}")
         
-        # Add backup.json button with popover
         if hostname in backups:
             backup_data = backups[hostname]
             with st.popover("📄 backup.json"):
                 st.json(backup_data)
         else:
             st.button("📄 backup.json", disabled=True, help="No backup.json available")
+
+def clean_df_values(df, columns):
+    """Replace None/NaN values with 'Unknown' in specified columns"""
+    df = df.copy()
+    for col in columns:
+        df[col] = df[col].fillna('Unknown')
+    return df
 
 def backup_status_view():
     st.title('Backup Status')
@@ -74,69 +81,33 @@ def backup_status_view():
     
     # Create DataFrame
     df = pd.DataFrame(devices)
-    
-    # Sidebar filters
-    st.sidebar.header("Filters")
-    
-    # Country filter
-    countries = sorted([c for c in df['country'].unique().tolist() if c is not None])
-    selected_countries = st.sidebar.multiselect(
-        "Select Countries",
-        countries,
-        default=[]
-    )
-    
-    # Device Class filter
-    device_classes = sorted([d for d in df['device_class'].unique().tolist() if d is not None])
-    selected_device_classes = st.sidebar.multiselect(
-        "Select Device Classes",
-        device_classes,
-        default=[]
-    )
-    
-    # Vendor filter
-    vendors = sorted([v for v in df['vendor'].unique().tolist() if v is not None])
-    selected_vendors = st.sidebar.multiselect(
-        "Select Vendors",
-        vendors,
-        default=[]
-    )
-    
-    # Backup Status filter
-    backup_statuses = ['OK', 'Warning', 'Attention', 'Severe', 'Critical', 'Failure', 'Bad date format', 'Bad backup.json', 'No backup.json']
-    selected_backup_statuses = st.sidebar.multiselect(
-        "Select Backup Statuses",
-        backup_statuses,
-        default=[]
-    )
-    
-    # Apply filters
-    mask = pd.Series([True] * len(df))
-    
-    if selected_countries:
-        mask &= df['country'].isin(selected_countries)
-    
-    if selected_device_classes:
-        mask &= df['device_class'].isin(selected_device_classes)
-    
-    if selected_vendors:
-        mask &= df['vendor'].isin(selected_vendors)
-        
-    # Filter the DataFrame
-    filtered_df = df[mask].copy()
-    
+
     # Add backup status column
-    filtered_df['backup_status_column'] = filtered_df['hostname'].apply(
+    df['Backup Status'] = df['hostname'].apply(
         lambda x: format_backup_status_value(x, backups)
     )
-    
-    # Apply backup status filter if selected
-    if selected_backup_statuses:
-        backup_mask = filtered_df['backup_status_column'].apply(
-            lambda x: any(status in x for status in selected_backup_statuses)
-        )
-        filtered_df = filtered_df[backup_mask]
 
+    # Clean values first using original column names
+    original_cols = ["country", "vendor", "device_class", "Backup Status"]
+    df = clean_df_values(df, original_cols)
+    
+    # Then rename columns
+    df = df.rename(columns={
+        'device_class': 'Device Class',
+        'country': 'Country',
+        'vendor': 'Vendor'
+    })
+
+    filtering_cols = ["Country", "Vendor", "Device Class", "Backup Status"]
+
+    # Setup filters
+    st.sidebar.header("Filters")
+    dynamic_filters = DynamicFilters(df, filters=filtering_cols, filters_name="backup_status_filters")
+    filtered_df = dynamic_filters.filter_df()
+
+    # Display filters in sidebar
+    dynamic_filters.display_filters(location="sidebar")
+    
     # Create and display charts side by side
     col1, col2 = st.columns(2)
     
@@ -152,10 +123,10 @@ def backup_status_view():
     display_cols = [
         'hostname', 
         'ip', 
-        'country', 
-        'device_class',
-        'vendor',  # New column
-        'backup_status_column', 
+        'Country', 
+        'Device Class',
+        'Vendor',
+        'Backup Status', 
         'Select'
     ]
     
@@ -173,10 +144,10 @@ def backup_status_view():
             ),
             "hostname": "Hostname",
             "ip": "IP Address", 
-            "country": "Country",
-            "device_class": "Device Class",
-            "vendor": "Vendor",  # New column configuration
-            "backup_status_column": st.column_config.Column(
+            "Country": "Country",
+            "Device Class": "Device Class",
+            "Vendor": "Vendor",
+            "Backup Status": st.column_config.Column(
                 "Backup Status",
                 help=f"{get_emoji_color(1)} more than 1 x max_age\n"
                      f"{get_emoji_color(2)} more than 2 x max_age\n"

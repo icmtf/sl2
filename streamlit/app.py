@@ -49,7 +49,7 @@ def main():
             # Main side menu
             compliance_selected = option_menu(
                 menu_title="Compliance Views",
-                options=["Backup Status", "Operational Status", "Validation Status", "Global Overview"],
+                options=["Backup Status", "Operational Status", "Validation Status", "Global Overview [WiP]"],
                 icons=["hdd", "shield", "check-circle", "globe"],
                 default_index=0,
                 styles={
@@ -111,7 +111,7 @@ def main():
                 cisco_validation_status_view()
             elif validation_selected == "Fortinet":
                 fortinet_validation_status_view()
-        elif compliance_selected == "Global Overview":
+        elif compliance_selected == "Global Overview [WiP]":
             global_overview()
             
     else:  # Remote Access Status
