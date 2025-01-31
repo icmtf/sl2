@@ -45,7 +45,7 @@ def create_backup_status_bar_chart(df, backups):
     data = []
     for _, row in df.iterrows():
         status = backup_status_bar_chart_value(row['hostname'], backups)
-        vendor = backups.get(row['hostname'], {}).get('vendor', 'Unknown')  # Pobierz vendor z backups albo ustaw 'Unknown'
+        vendor = row.get('Vendor', 'Unknown')
         data.append({
             'Vendor': vendor,
             'Status': status
