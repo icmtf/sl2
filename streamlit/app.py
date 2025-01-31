@@ -1,147 +1,65 @@
 import streamlit as st
-from streamlit_option_menu import option_menu
-from views.backup_status.view import backup_status_view
-from views.operational_status.view import compliance_status_view as operational_status_view
-from views.validation_status.view import validation_status_view
-from views.validation_status.cisco import cisco_validation_status_view
-from views.validation_status.fortinet import fortinet_validation_status_view
-from views.remote_access.page1 import remote_access_page1
-from views.remote_access.page2 import remote_access_page2
-from views.global_overview import global_overview
 
-def main():
-    st.set_page_config(page_title="CodeHorizon", layout="wide")
-    
-    # Main horizontal menu
-    main_selected = option_menu(
-        menu_title=None,
-        options=["Compliance Status", "Remote Access Status"],
-        icons=["shield-check", "pc-display"],
-        menu_icon="cast",
-        default_index=0,
-        orientation="horizontal",
-        styles={
-            "container": {"padding": "0!important", "background-color": "#1e1e1e"},
-            "icon": {"color": "#2196F3", "font-size": "25px"},
-            "nav-link": {
-                "font-size": "25px",
-                "text-align": "center",
-                "margin": "0px",
-                "--hover-color": "#333",
-                "color": "#666",
-            },
-            "nav-link-selected": {
-                "background-color": "#1A1A1A",
-                "color": "#2196F3",
-            }
+st.set_page_config(page_title="iNET Services", layout="wide")
+
+if "logged_in" not in st.session_state:
+    st.session_state.logged_in = False
+
+def login():
+    if st.button("Log in"):
+        st.session_state.logged_in = True
+        st.rerun()
+
+def logout():
+    if st.button("Log out"):
+        st.session_state.logged_in = False
+        st.rerun()
+
+# Auth pages
+login_page = st.Page(login, title="Log in", icon=":material/login:", url_path="login")
+logout_page = st.Page(logout, title="Log out", icon=":material/logout:", url_path="logout")
+
+# Global pages
+from views.global_overview import show as global_overview_show
+
+home_page = st.Page(global_overview_show, title="Global Overview", icon=":material/dashboard:", default=True, url_path="home")
+device_details = st.Page("views/device_details.py", title="Device Details", icon=":material/devices:", url_path="devices")
+
+# Compliance Status pages
+backup_status = st.Page("views/backup_status/view.py", title="Backup Status", icon=":material/backup:", url_path="backup_status")
+operational_status = st.Page("views/operational_status/view.py", title="Operational Status", icon=":material/check_circle:", url_path="operational_status")
+validation_status = st.Page("views/validation_status/view.py", title="Validation Status", icon=":material/check_circle:", url_path="validation_status")
+validation_cisco = st.Page("views/validation_status/cisco.py", title="Cisco", icon=":material/router:", url_path="validation_cisco")
+validation_fortinet = st.Page("views/validation_status/fortinet.py", title="Fortinet", icon=":material/security:", url_path="validation_fortinet")
+
+# Remote Access pages
+from views.remote_access import page1, page2
+
+remote_access_p1 = st.Page(page1.show, title="Remote Access P1", icon=":material/vpn_key:", url_path="remote_access_1")
+remote_access_p2 = st.Page(page2.show, title="Remote Access P2", icon=":material/vpn_key:", url_path="remote_access_2")
+
+if st.session_state.logged_in:
+    pg = st.navigation(
+        {
+            "Home": [logout_page, home_page, device_details],
+            "Compliance Status": [
+                backup_status,
+                operational_status,
+                validation_status,
+                validation_cisco,
+                validation_fortinet
+            ],
+            "Remote Access": [
+                remote_access_p1,
+                remote_access_p2
+            ],
         }
     )
-    
-    if main_selected == "Compliance Status":
-        with st.sidebar:
-            # CSS for side menu
-            st.markdown("""
-                <style>
-                div[data-testid="stVerticalBlock"] div:has(div.stButton) {padding: 0;}
-                </style>
-            """, unsafe_allow_html=True)
+else:
+    pg = st.navigation(
+        {
+            "Home": [login_page, home_page]
+        }
+    )
 
-            # Main side menu
-            compliance_selected = option_menu(
-                menu_title="Compliance Views",
-                options=["Backup Status", "Operational Status", "Validation Status", "Global Overview [WiP]"],
-                icons=["hdd", "shield", "check-circle", "globe"],
-                default_index=0,
-                styles={
-                    "container": {"padding": "5!important", "background-color": "#1e1e1e"},
-                    "icon": {"color": "#2196F3", "font-size": "15px"},
-                    "nav-link": {
-                        "font-size": "16px",
-                        "text-align": "left",
-                        "margin": "0px",
-                        "--hover-color": "#333",
-                        "color": "#666",
-                    },
-                    "nav-link-selected": {
-                        "background-color": "#1A1A1A",
-                        "color": "#2196F3",
-                    }
-                }
-            )
-
-            # Submenu for Validation Status
-            validation_selected = None
-            if compliance_selected == "Validation Status":
-                validation_selected = option_menu(
-                    menu_title=None,
-                    options=["Overview", "Cisco", "Fortinet"],
-                    icons=["house", "1-circle", "2-circle"],
-                    default_index=0,
-                    styles={
-                        "container": {
-                            "padding": "0!important", 
-                            "background-color": "transparent",
-                            "margin-left": "1rem"
-                        },
-                        "icon": {"color": "#2196F3", "font-size": "13px"},
-                        "nav-link": {
-                            "font-size": "14px",
-                            "text-align": "left",
-                            "margin": "0px",
-                            "--hover-color": "#333",
-                            "color": "#666",
-                            "padding": "0.5rem 1rem",
-                        },
-                        "nav-link-selected": {
-                            "background-color": "#1A1A1A",
-                            "color": "#2196F3",
-                        }
-                    }
-                )
-        
-        # Rendering appropriate views
-        if compliance_selected == "Backup Status":
-            backup_status_view()
-        elif compliance_selected == "Operational Status":
-            operational_status_view()
-        elif compliance_selected == "Validation Status":
-            if not validation_selected or validation_selected == "Overview":
-                validation_status_view()
-            elif validation_selected == "Cisco":
-                cisco_validation_status_view()
-            elif validation_selected == "Fortinet":
-                fortinet_validation_status_view()
-        elif compliance_selected == "Global Overview [WiP]":
-            global_overview()
-            
-    else:  # Remote Access Status
-        with st.sidebar:
-            remote_selected = option_menu(
-                menu_title="Remote Access Views",
-                options=["Page 1", "Page 2"],
-                icons=["1-circle", "2-circle"],
-                default_index=0,
-                styles={
-                    "container": {"padding": "5!important", "background-color": "#1e1e1e"},
-                    "icon": {"color": "#2196F3", "font-size": "15px"},
-                    "nav-link": {
-                        "font-size": "16px",
-                        "text-align": "left",
-                        "margin": "0px",
-                        "--hover-color": "#333",
-                        "color": "#666",
-                    },
-                    "nav-link-selected": {
-                        "background-color": "#1A1A1A",
-                        "color": "#2196F3",
-                    }
-                }
-            )
-        
-        if remote_selected == "Page 1":
-            remote_access_page1()
-        else:
-            remote_access_page2()
-
-if __name__ == "__main__":
-    main()
+pg.run()

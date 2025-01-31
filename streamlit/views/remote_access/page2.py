@@ -1,4 +1,4 @@
 import streamlit as st
 
-def remote_access_page2():
+def show():
     st.header("Remote Access page 2")
