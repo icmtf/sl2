@@ -72,7 +72,6 @@ services:
         REGISTRY: ${REGISTRY:-}
     environment:
       - REDIS_URL=redis://redis:6379
-      # - ENVIRONMENT=${ENVIRONMENT:-local}
       - OTEL_EXPORTER_OTLP_ENDPOINT=http://jaeger:4317
     depends_on:
       - redis
@@ -87,6 +86,9 @@ services:
       - "6831/udp"  # Jaeger agent
       - "4317"   # OTLP gRPC
       - "4318"   # OTLP HTTP
+    environment:
+      - MEMORY_MAX_TRACES=10000
+      - MEMORY_STORAGE_TTL=3h
     networks:
       - default
 

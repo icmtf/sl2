@@ -1,6 +1,6 @@
 class BitbucketDriver:
     def __init__(self, workspace: str, repo_slug: str, base_url: str):
-        self.workspace = workspace  # w Bitbucket Server to będzie project_key
+        self.workspace = workspace  # in Bitbucket Server this will be project_key
         self.repo_slug = repo_slug
         self.base_url = base_url
         self.platform_name = "Bitbucket Server Data Center"

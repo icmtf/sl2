@@ -9,15 +9,26 @@ from opentelemetry.sdk.trace import TracerProvider
 from opentelemetry.sdk.trace.export import BatchSpanProcessor
 from opentelemetry.sdk.resources import Resource
 from opentelemetry.instrumentation.fastapi import FastAPIInstrumentor
+from opentelemetry.sdk.trace.sampling import ParentBasedTraceIdRatio
 
 # Initialize OpenTelemetry
 resource = Resource.create({"service.name": "fastapi-service"})
-trace.set_tracer_provider(TracerProvider(resource=resource))
+
+# Configure sampling - sample 10% of traces
+sampler = ParentBasedTraceIdRatio(0.1)
+
+# Initialize TracerProvider with sampler
+provider = TracerProvider(
+    resource=resource,
+    sampler=sampler
+)
+
 otlp_exporter = OTLPSpanExporter(
     endpoint=os.getenv("OTEL_EXPORTER_OTLP_ENDPOINT", "http://jaeger:4317")
 )
 span_processor = BatchSpanProcessor(otlp_exporter)
-trace.get_tracer_provider().add_span_processor(span_processor)
+provider.add_span_processor(span_processor)
+trace.set_tracer_provider(provider)
 
 app = FastAPI()
 

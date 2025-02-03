@@ -1,0 +1,55 @@
+"Development":
+    icon: ":material/thumb_up:"
+    links:
+      - name: "GitHub"
+        url: "https://github.com"
+        description: "Platform for code hosting and collaboration. Features include pull requests, discussions, and project management tools."
+        icon: "https://www.google.com/s2/favicons?domain=github.com&sz=128"
+        tags: ["git", "coding", "opensource"]
+      - name: "Dev.to"
+        url: "https://dev.to"
+        description: "Community of developers sharing ideas and articles. Great for staying updated with tech trends."
+        icon: "https://www.google.com/s2/favicons?domain=dev.to&sz=128"
+        tags: ["community", "blog", "learning"]
+
+"Design":
+    icon: ":material/palette:"
+    links:
+      - name: "Dribbble"
+        url: "https://dribbble.com"
+        description: "Design inspiration platform showcasing top designer work. Perfect for UI/UX inspiration and trends."
+        icon: "https://www.google.com/s2/favicons?domain=dribbble.com&sz=128"
+        tags: ["design", "inspiration", "ui"]
+      - name: "Figma"
+        url: "https://figma.com"
+        description: "Collaborative interface design tool. Create, share, and prototype your designs in real-time."
+        icon: "https://www.google.com/s2/favicons?domain=figma.com&sz=128"
+        tags: ["design", "prototyping", "collaboration"]
+
+"Learning":
+    icon: ":material/school:"
+    links:
+      - name: "freeCodeCamp"
+        url: "https://www.freecodecamp.org"
+        description: "Free coding education platform with certifications. Learn web development, Python, and more."
+        icon: "https://www.google.com/s2/favicons?domain=freecodecamp.org&sz=128"
+        tags: ["programming", "education", "free"]
+      - name: "Coursera"
+        url: "https://www.coursera.org"
+        description: "Online learning platform with university-backed courses. Access high-quality education from top institutions."
+        icon: "https://www.google.com/s2/favicons?domain=coursera.org&sz=128"
+        tags: ["education", "courses", "certificates"]
+
+"Tools":
+    icon: ":material/manufacturing:"
+    links:
+      - name: "Notion"
+        url: "https://www.notion.so"
+        description: "All-in-one workspace for notes, docs, and collaboration. Perfect for personal and team organization."
+        icon: "https://www.google.com/s2/favicons?domain=notion.so&sz=128"
+        tags: ["productivity", "notes", "organization"]
+      - name: "Vercel"
+        url: "https://vercel.com"
+        description: "Deploy web projects with ease. Perfect for frontend deployment and serverless functions."
+        icon: "https://www.google.com/s2/favicons?domain=vercel.com&sz=128"
+        tags: ["hosting", "deployment", "frontend"]

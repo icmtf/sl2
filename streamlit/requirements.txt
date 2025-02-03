@@ -3,6 +3,7 @@ requests
 redis
 pandas
 geopandas
+pyaml
 folium
 streamlit-folium
 plotly
