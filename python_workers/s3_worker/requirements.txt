@@ -1,5 +1,6 @@
 redis
 boto3
+pandas
 python-dotenv
 PyYAML
 opentelemetry-api

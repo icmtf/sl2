@@ -4,6 +4,8 @@ import math
 import redis
 import json
 import boto3
+import csv
+from io import StringIO
 from botocore.exceptions import ClientError
 from dotenv import load_dotenv
 from opentelemetry import trace
@@ -35,7 +37,11 @@ tracer = trace.get_tracer(__name__)
 load_dotenv()
 
 # Load configuration
-required_keys = ["S3_ENDPOINT", "S3_BUCKET", "S3_KEY", "S3_SECRET", "S3_BACKUPS_ROOT_DIR"]
+required_keys = [
+    "S3_ENDPOINT", "S3_BUCKET", "S3_KEY", "S3_SECRET", 
+    "S3_BACKUPS_ROOT_DIR", "S3_REMOTE_ACCESS_ROOT_DIR",
+    "S3_REMOTE_ACCESS_FILE_NAME"
+]
 config_loader = ConfigLoader(required_keys=required_keys, yaml_path='settings.yaml', env="prd")
 config = config_loader.get_config()
 
@@ -169,6 +175,33 @@ def get_s3_validation_and_opstatus_data():
             print(f"Error in get_s3_validation_and_opstatus_data: {str(e)}")
             return {}, []
 
+def get_remote_access_data():
+    """Get remote access data from S3 and store it in Redis"""
+    with tracer.start_as_current_span("get_remote_access_data"):
+        try:
+            # Construct the full S3 key
+            key = f"{config['S3_REMOTE_ACCESS_ROOT_DIR']}/{config['S3_REMOTE_ACCESS_FILE_NAME']}"
+            
+            # Get raw CSV content
+            response = s3_client.get_object(Bucket=config['S3_BUCKET'], Key=key)
+            csv_content = response['Body'].read().decode('utf-8')
+            
+            # Use CSV reader to properly handle commas in fields
+            csv_file = StringIO(csv_content)
+            csv_reader = csv.DictReader(csv_file)
+            records = list(csv_reader)
+            
+            # Store in Redis
+            redis_client.set("remote_access_data", json.dumps(records))
+            
+            # Debug print
+            print(f"Processed {len(records)} records from remote access CSV")
+            
+            return True
+        except Exception as e:
+            print(f"Error processing remote access data: {str(e)}")
+            return False
+
 def store_s3_data_in_redis(data, redis_key_prefix):
     """Store data in Redis with proper key prefixes
     
@@ -221,6 +254,9 @@ def main():
             store_s3_data_in_redis(s3_backups, "s3_backups")
             store_s3_data_in_redis(s3_validation, "s3_validation")
             store_s3_data_in_redis(s3_opstatus, "s3_opstatus")
+            
+            # Get remote access data
+            get_remote_access_data()
             
             time.sleep(600)  # Run every 10 minutes
 

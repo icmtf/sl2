@@ -2,6 +2,10 @@ S3_ENDPOINT: "http://s3mock:9090"
 S3_BUCKET: "s3-bucket"
 S3_KEY: "test"
 S3_SECRET: "test"
-S3_USE_SSL: true
-S3_VERIFY" "bundle.crt"
+S3_USE_SSL: false
+S3_VERIFY: false
 S3_BACKUPS_ROOT_DIR: "inetportalNG"
+S3_REMOTE_ACCESS_ROOT_DIR: "inetportalNG/RemoteAccess"
+S3_REMOTE_ACCESS_FILE_NAME: "all-gateways.csv"
+S3_ARP_ROOT_DIR: "inetportalNG/RemoteAccess"
+S3_ARP_FILE_NAME: "INET_ARP.csv"
