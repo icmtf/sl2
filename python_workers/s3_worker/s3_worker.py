@@ -16,6 +16,7 @@ from opentelemetry.sdk.resources import Resource
 from opentelemetry.instrumentation.botocore import BotocoreInstrumentor
 from jsonschema import validate, ValidationError
 from datetime import datetime, timezone
+import re
 
 from pyinet.common.config_loader import ConfigLoader
 
@@ -40,7 +41,8 @@ load_dotenv()
 required_keys = [
     "S3_ENDPOINT", "S3_BUCKET", "S3_KEY", "S3_SECRET", 
     "S3_BACKUPS_ROOT_DIR", "S3_REMOTE_ACCESS_ROOT_DIR",
-    "S3_REMOTE_ACCESS_FILE_NAME"
+    "S3_REMOTE_ACCESS_FILE_NAME", "S3_ARP_ROOT_DIR",
+    "S3_ARP_FILE_NAME"
 ]
 config_loader = ConfigLoader(required_keys=required_keys, yaml_path='settings.yaml', env="prd")
 config = config_loader.get_config()
@@ -202,6 +204,64 @@ def get_remote_access_data():
             print(f"Error processing remote access data: {str(e)}")
             return False
 
+def get_arp_data():
+    """Get ARP data from S3 and store it in Redis"""
+    with tracer.start_as_current_span("get_arp_data"):
+        try:
+            # Construct the full S3 key
+            key = f"{config['S3_ARP_ROOT_DIR']}/{config['S3_ARP_FILE_NAME']}"
+            
+            # Get raw content
+            response = s3_client.get_object(Bucket=config['S3_BUCKET'], Key=key)
+            content = response['Body'].read().decode('utf-8')
+            print(content)
+            # Parse ARP data
+            arp_entries = []
+            current_device = None
+            
+            for line in content.split('\n'):
+                line = line.strip()
+                if not line:
+                    continue
+                    
+                # Ignore lines starting with asterisk
+                if line.startswith('*'):
+                    continue
+                    
+                # Check if the line contains the device name
+                if line.startswith('#'):
+                    device_match = re.match(r'#{32}([^#]+)#{33}', line)
+                    if device_match:
+                        current_device = device_match.group(1).strip()
+                    continue
+                
+                # Check if it's not an error line
+                if 'Error' in line:
+                    continue
+                    
+                # Parse ARP entries
+                if current_device:
+                    arp_match = re.match(r'(\S+)\s+is\s+at\s+(\S+)\s+on\s+(\S+)', line)
+                    print(arp_match)
+                    if arp_match:
+                        arp_entries.append({
+                            'device': current_device,
+                            'first_address': arp_match.group(1),
+                            'second_address': arp_match.group(2),
+                            'interface': arp_match.group(3)
+                        })
+            
+            # Store in Redis
+            redis_client.set("arp_data", json.dumps(arp_entries))
+            
+            # Debug print
+            print(f"Processed {len(arp_entries)} ARP entries")
+            
+            return True
+        except Exception as e:
+            print(f"Error processing ARP data: {str(e)}")
+            return False
+
 def store_s3_data_in_redis(data, redis_key_prefix):
     """Store data in Redis with proper key prefixes
     
@@ -257,6 +317,9 @@ def main():
             
             # Get remote access data
             get_remote_access_data()
+            
+            # Get ARP data
+            get_arp_data()
             
             time.sleep(600)  # Run every 10 minutes
 
