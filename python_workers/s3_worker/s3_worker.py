@@ -5,6 +5,13 @@ import redis
 import json
 import boto3
 import csv
+import logging
+
+# Configure logging
+logging.getLogger('boto3').setLevel(logging.WARNING)
+logging.getLogger('botocore').setLevel(logging.WARNING)
+logging.getLogger('s3transfer').setLevel(logging.WARNING)
+logging.getLogger('urllib3').setLevel(logging.WARNING)
 from io import StringIO
 from botocore.exceptions import ClientError
 from dotenv import load_dotenv

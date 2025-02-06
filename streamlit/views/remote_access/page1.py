@@ -50,7 +50,7 @@ def show():
     col1, col2, col3, col4 = st.columns(4)
     
     with col1:
-        policies = sorted(df['GrpPolicy'].unique())
+        policies = sorted([p for p in df['GrpPolicy'].unique() if p is not None])
         selected_policy = st.multiselect('Filter by Policy', policies)
     
     with col2:
