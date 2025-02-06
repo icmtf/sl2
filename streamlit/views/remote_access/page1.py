@@ -33,6 +33,10 @@ def create_pie_chart(df, column, title):
     )
     return fig
 
+def get_unique_sorted_values(df, column):
+    """Pobierz unikalne wartości z kolumny, ignorując None"""
+    return sorted([x for x in df[column].unique() if x is not None])
+
 def show():
     st.title("Remote Access Status")
     
@@ -50,19 +54,19 @@ def show():
     col1, col2, col3, col4 = st.columns(4)
     
     with col1:
-        policies = sorted([p for p in df['GrpPolicy'].unique() if p is not None])
+        policies = get_unique_sorted_values(df, 'GrpPolicy')
         selected_policy = st.multiselect('Filter by Policy', policies)
     
     with col2:
-        countries = sorted(df['Country'].unique())
+        countries = get_unique_sorted_values(df, 'Country')
         selected_country = st.multiselect('Filter by Country', countries)
         
     with col3:
-        as_orgs = sorted(df['AS_Org'].unique())
+        as_orgs = get_unique_sorted_values(df, 'AS_Org')
         selected_as_org = st.multiselect('Filter by AS Organization', as_orgs)
         
     with col4:
-        gateways = sorted(df['Gateway'].unique())
+        gateways = get_unique_sorted_values(df, 'Gateway')
         selected_gateway = st.multiselect('Filter by Gateway', gateways)
     
     # Zastosuj filtry
