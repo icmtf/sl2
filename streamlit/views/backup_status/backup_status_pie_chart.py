@@ -70,4 +70,5 @@ def create_backup_status_pie_chart(df, backups):
     )
     
     fig.update_traces(textposition='inside', textinfo='percent+label')
+    fig.update_layout(plot_bgcolor='rgba(0,0,0,0)', paper_bgcolor='rgba(0,0,0,0)')
     return fig

@@ -1,6 +1,10 @@
 import streamlit as st
+from theme_switcher import apply_theme
 
 st.set_page_config(page_title="iNET Services", layout="wide")
+
+# Zastosuj motyw
+apply_theme()
 
 if "logged_in" not in st.session_state:
     st.session_state.logged_in = False

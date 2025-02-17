@@ -43,7 +43,8 @@ def create_pie_chart(df, column, title):
     
     fig.update_layout(
         showlegend=True,
-        legend=dict(orientation="h", yanchor="bottom", y=-0.5, xanchor="center", x=0.5)
+        legend=dict(orientation="h", yanchor="bottom", y=-0.5, xanchor="center", x=0.5),
+        plot_bgcolor='rgba(0,0,0,0)', paper_bgcolor='rgba(0,0,0,0)'
     )
     
     return fig

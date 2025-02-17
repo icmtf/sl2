@@ -123,7 +123,9 @@ def create_backup_status_bar_chart(df, backups):
             y=0.99,
             xanchor="left",
             x=1.01
-        )
+        ),
+        plot_bgcolor='rgba(0,0,0,0)',
+        paper_bgcolor='rgba(0,0,0,0)'
     )
     
     return fig

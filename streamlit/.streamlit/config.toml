@@ -1,13 +1,15 @@
+[theme]
+base = "light"
+primaryColor="#00915a"
+backgroundColor="#000000"
+secondaryBackgroundColor="#00915a"
+textColor="#ffffff"
+font = "sans serif"
+accentColor = "#8fd429"
+
 [server]
-enableCORS = true
-enableXsrfProtection = false
+enableXsrfProtection = true
+enableCORS = false
 
 [browser]
 gatherUsageStats = false
-
-[global]
-developmentMode = false
-
-
-[client]
-showErrorDetails = true

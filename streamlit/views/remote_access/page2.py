@@ -48,7 +48,8 @@ def show():
             xaxis_title="Device",
             yaxis_title="Number of ARP entries",
             height=400,
-            margin=dict(t=30, b=0)  # Reduce margins
+            margin=dict(t=30, b=0),  # Reduce margins
+            plot_bgcolor='rgba(0,0,0,0)', paper_bgcolor='rgba(0,0,0,0)'
         )
         
         # Display chart
