@@ -112,18 +112,26 @@ def get_s3_backups_data():
                 Prefix=f"{config['S3_BACKUPS_ROOT_DIR']}/"
             )
             
+            logger.info(f"Looking for templates in {config['S3_BACKUPS_ROOT_DIR']}/")
+            logger.info(f"Found {len(response.get('Contents', []))} objects")
+            
             backups = {}
             templates = {}
             
             # First, find all template.json files
             for obj in response.get('Contents', []):
                 key = obj['Key']
+                logger.info(f"Processing S3 object: {key}")
                 parts = key.split('/')
                 if len(parts) == 4 and parts[-1] == 'template.json':
                     device_class, vendor = parts[1:3]
+                    logger.info(f"Found template.json for {device_class}/{vendor}")
                     template_data = get_s3_file_content(key)
                     if template_data:
                         templates[f"{device_class}/{vendor}"] = template_data
+                        logger.info(f"Successfully loaded template for {device_class}/{vendor}")
+            
+            logger.info(f"Found and loaded {len(templates)} templates: {list(templates.keys())}")
             
             # Now process backup.json files
             for obj in response.get('Contents', []):
@@ -131,10 +139,12 @@ def get_s3_backups_data():
                 parts = key.split('/')
                 if len(parts) == 5 and parts[-1] == 'backup.json':
                     device_class, vendor, hostname = parts[1:4]
+                    logger.info(f"Processing backup.json for {hostname}, device_class={device_class}, vendor={vendor}")
                     backup_data = get_s3_file_content(key)
                     if backup_data:
                         template_key = f"{device_class}/{vendor}"
                         has_schema = template_key in templates
+                        logger.info(f"Template key: {template_key}, has_schema: {has_schema}")
                         
                         # Add backup_json_data to the backups dictionary
                         backups[hostname] = {
