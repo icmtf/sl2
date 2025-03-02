@@ -16,6 +16,8 @@ from opentelemetry.sdk.trace.export import BatchSpanProcessor
 from opentelemetry.sdk.resources import Resource
 from opentelemetry.instrumentation.botocore import BotocoreInstrumentor
 from jsonschema import validate, ValidationError
+import traceback
+import sys
 from datetime import datetime, timezone
 import re
 
@@ -36,10 +38,22 @@ BotocoreInstrumentor().instrument()
 tracer = trace.get_tracer(__name__)
 
 # Configure logging
+logging.basicConfig(
+    level=logging.INFO,
+    format='%(asctime)s - %(name)s - %(levelname)s - %(message)s',
+    handlers=[
+        logging.StreamHandler(sys.stdout)
+    ]
+)
+
+# Configure specific loggers
 logging.getLogger('boto3').setLevel(logging.WARNING)
 logging.getLogger('botocore').setLevel(logging.WARNING)
 logging.getLogger('s3transfer').setLevel(logging.WARNING)
 logging.getLogger('urllib3').setLevel(logging.WARNING)
+
+# Create logger for this module
+logger = logging.getLogger('s3_worker')
 
 # Load environment variables
 load_dotenv()
@@ -78,10 +92,15 @@ def get_s3_file_content(key):
     """Get content of a file from S3 bucket"""
     with tracer.start_as_current_span("get_s3_file_content"):
         try:
+            logger.debug(f"Fetching content from S3: {key}")
             response = s3_client.get_object(Bucket=config['S3_BUCKET'], Key=key)
-            return json.loads(response['Body'].read().decode('utf-8'))
+            content = response['Body'].read().decode('utf-8')
+            parsed_content = json.loads(content)
+            logger.debug(f"Successfully parsed content from: {key}")
+            return parsed_content
         except Exception as e:
-            print(f"Error getting file content: {str(e)}")
+            logger.error(f"Error getting file content from {key}: {str(e)}")
+            logger.error(traceback.format_exc())
             return None
 
 def get_s3_backups_data():
@@ -129,14 +148,28 @@ def get_s3_backups_data():
                         # Validate against template
                         if has_schema:
                             try:
+                                logger.info(f"Validating backup.json for {hostname} against schema for {device_class}/{vendor}")
                                 validate(instance=backup_data, schema=templates[template_key])
                                 backups[hostname]['valid_schema'] = True
-                            except ValidationError:
+                                logger.info(f"Validation SUCCESS for {hostname}")
+                            except ValidationError as ve:
                                 backups[hostname]['valid_schema'] = False
+                                # Log validation error details
+                                logger.error(f"Validation FAILED for {hostname}:")
+                                logger.error(f"  - Error message: {str(ve)}")
+                                logger.error(f"  - JSON path: {' -> '.join([str(p) for p in ve.path])}")
+                                logger.error(f"  - Schema path: {' -> '.join([str(p) for p in ve.schema_path])}")
+                                logger.error(f"  - Schema: {json.dumps(ve.schema, indent=2)}")
+                                logger.error(f"  - Instance: {json.dumps(ve.instance, indent=2)}")
+                                
+                                # Log backup.json and template.json for comparison
+                                logger.info(f"Template JSON for {device_class}/{vendor}:\n{json.dumps(templates[template_key], indent=2)}")
+                                logger.info(f"Backup JSON for {hostname}:\n{json.dumps(backup_data, indent=2)}")
             
             return backups
         except ClientError as e:
-            print(f"Error in get_s3_backups_data: {str(e)}")
+            logger.error(f"Error in get_s3_backups_data: {str(e)}")
+            logger.error(traceback.format_exc())
             return {}
 
 def get_s3_validation_and_opstatus_data():
@@ -254,56 +287,113 @@ def store_s3_data_in_redis(data, redis_key_prefix):
     """Store data in Redis with proper key prefixes"""
     with tracer.start_as_current_span("store_s3_data_in_redis"):
         try:
+            logger.info(f"Storing {redis_key_prefix} data in Redis, {len(data)} items")
+            
             if redis_key_prefix == "s3_opstatus":
                 redis_client.set(redis_key_prefix, json.dumps(data))
-                print(f"Stored operational status data in Redis")
+                logger.info(f"Stored operational status data in Redis")
                 return
 
             pipeline = redis_client.pipeline()
             
             existing_keys = redis_client.keys(f"{redis_key_prefix}:*")
             if existing_keys:
+                logger.info(f"Deleting {len(existing_keys)} existing keys with prefix {redis_key_prefix}")
                 pipeline.delete(*existing_keys)
             
             for hostname, device_data in data.items():
                 redis_key = f"{redis_key_prefix}:{hostname}"
+                logger.debug(f"Preparing Redis data for {redis_key}")
+                
                 if redis_key_prefix == "s3_validation":
                     pipeline.hset(redis_key, mapping={
                         "vendor": device_data["vendor"],
                         "validation_data": json.dumps(device_data["validation_data"])
                     })
                 else:  # s3_backups
+                    # Log validation status for each device
+                    has_schema = device_data.get('schema', False)
+                    valid_schema = device_data.get('valid_schema', None)
+                    logger.info(f"Device {hostname}: has_schema={has_schema}, valid_schema={valid_schema}")
+                    
                     pipeline.hset(redis_key, mapping={
                         "vendor": device_data["vendor"],
                         "backup_data": json.dumps(device_data)
                     })
             
             pipeline.execute()
-            print(f"Stored {redis_key_prefix} data for {len(data)} devices in Redis")
+            logger.info(f"Successfully stored {redis_key_prefix} data for {len(data)} devices in Redis")
         except redis.RedisError as e:
-            print(f"Error storing {redis_key_prefix} data in Redis: {str(e)}")
+            logger.error(f"Error storing {redis_key_prefix} data in Redis: {str(e)}")
+            logger.error(traceback.format_exc())
 
 def main():
     """Main function - runs continuously and updates data"""
     while True:
         with tracer.start_as_current_span("s3_worker_main_loop"):
+            logger.info("===== Starting S3 worker data refresh cycle =====")
+            
             # Get and store backups data
+            logger.info("Fetching backup data from S3")
             s3_backups = get_s3_backups_data()
+            logger.info(f"Retrieved backup data for {len(s3_backups)} devices")
             store_s3_data_in_redis(s3_backups, "s3_backups")
             
             # Get and store validation and operational status data
+            logger.info("Fetching validation and operational status data from S3")
             s3_validation, s3_opstatus = get_s3_validation_and_opstatus_data()
+            logger.info(f"Retrieved validation data for {len(s3_validation)} devices")
             store_s3_data_in_redis(s3_validation, "s3_validation")
             store_s3_data_in_redis(s3_opstatus, "s3_opstatus")
             
             # Get remote access data
+            logger.info("Fetching remote access data from S3")
             get_remote_access_data()
             
             # Get ARP data
+            logger.info("Fetching ARP data from S3")
             get_arp_data()
+            
+            logger.info("===== Completed S3 worker data refresh cycle =====")
+            logger.info(f"Next update in 10 minutes")
             
             # Wait 10 minutes before next iteration
             time.sleep(600)
 
+def run_once(target_hostname=None):
+    """Run the worker once for testing purposes"""
+    logger.info("===== Starting S3 worker single run for testing =====")
+    
+    # Get and store backups data
+    logger.info("Fetching backup data from S3")
+    s3_backups = get_s3_backups_data()
+    logger.info(f"Retrieved backup data for {len(s3_backups)} devices")
+    
+    # If a target hostname is specified, print detailed information for that device
+    if target_hostname and target_hostname in s3_backups:
+        device_data = s3_backups[target_hostname]
+        logger.info(f"\n\n==== DETAILED INFO FOR {target_hostname} ====\n")
+        logger.info(f"Device Class: {device_data.get('device_class')}")
+        logger.info(f"Vendor: {device_data.get('vendor')}")
+        logger.info(f"Has Schema: {device_data.get('schema')}")
+        logger.info(f"Valid Schema: {device_data.get('valid_schema')}")
+        
+        # If backup_json_data exists, show its vendor and other details
+        backup_json = device_data.get('backup_json_data', {})
+        logger.info(f"\nBackup JSON Data:")
+        logger.info(f"  - Hostname: {backup_json.get('hostname')}")
+        logger.info(f"  - Vendor in backup_json: {backup_json.get('vendor')}")
+        
+        # Check for vendor mismatch
+        if device_data.get('vendor') != backup_json.get('vendor'):
+            logger.warning(f"VENDOR MISMATCH: {device_data.get('vendor')} (metadata) vs {backup_json.get('vendor')} (backup.json)")
+    
+    store_s3_data_in_redis(s3_backups, "s3_backups")
+    
+    logger.info("===== Completed S3 worker test run =====")
+
 if __name__ == "__main__":
-    main()
+    # Use run_once() for testing or main() for normal operation
+    # Specify a hostname to analyze a specific device or leave empty for all devices
+    run_once("frpa3-man-ppfw-fg02")
+    # main()
