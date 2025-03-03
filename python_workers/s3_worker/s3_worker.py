@@ -131,6 +131,18 @@ def get_s3_backups_data():
                         templates[f"{device_class}/{vendor}"] = template_data
                         logger.info(f"Successfully loaded template for {device_class}/{vendor}")
             
+            # Dodaj ręcznie szablon dla Firewall/Fortinet
+            try:
+                fortinet_template_key = "inetportalNG/Firewall/Fortinet/template.json"
+                logger.info(f"Próba ręcznego załadowania szablonu: {fortinet_template_key}")
+                fortinet_template = get_s3_file_content(fortinet_template_key)
+                if fortinet_template:
+                    templates["Firewall/Fortinet"] = fortinet_template
+                    logger.info(f"Ręcznie załadowano szablon dla Firewall/Fortinet")
+            except Exception as e:
+                logger.error(f"Błąd podczas ręcznego ładowania szablonu: {str(e)}")
+                logger.error(traceback.format_exc())
+            
             logger.info(f"Found and loaded {len(templates)} templates: {list(templates.keys())}")
             
             # Now process backup.json files
