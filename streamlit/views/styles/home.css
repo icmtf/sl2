@@ -4,7 +4,7 @@
     margin-bottom: 1.5rem;
     transition: all 0.3s ease;
     position: relative;
-    background-color: rgba(30, 34, 45, 0.6) !important; /* Ciemniejsze tło, które będzie widoczne w każdym trybie */
+    background-color: rgba(30, 34, 45, 0.6) !important; /* Darker background that will be visible in every mode */
     border: 1px solid rgba(100, 100, 150, 0.3) !important;
     box-shadow: 0 4px 15px rgba(0, 0, 0, 0.3) !important;
 }

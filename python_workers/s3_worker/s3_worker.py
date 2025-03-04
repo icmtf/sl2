@@ -88,7 +88,7 @@ def get_s3_backups_data():
     """Get backup data from S3 and process it"""
     with tracer.start_as_current_span("get_s3_backups_data"):
         try:
-            # Użycie paginatora zamiast pojedynczego wywołania list_objects_v2
+            # Use paginator instead of a single list_objects_v2 call
             paginator = s3_client.get_paginator('list_objects_v2')
             
             backups = {}
@@ -153,7 +153,7 @@ def get_s3_validation_and_opstatus_data():
     """Get validation data from S3"""
     with tracer.start_as_current_span("get_s3_validation_and_opstatus_data"):
         try:
-            # Użycie paginatora zamiast pojedynczego wywołania list_objects_v2
+            # Use paginator instead of a single list_objects_v2 call
             paginator = s3_client.get_paginator('list_objects_v2')
             pages = paginator.paginate(
                 Bucket=config['S3_BUCKET'],

@@ -2,7 +2,7 @@ section[data-testid="stSidebar"] {
     background-color: #00915a !important;
 }
 
-/* Główne selektory dla białych tekstów w całym sidebarze */
+/* Main selectors for white texts in the entire sidebar */
 section[data-testid="stSidebar"] *,
 section[data-testid="stSidebar"] .element-container *,
 section[data-testid="stSidebar"] p,
@@ -16,7 +16,7 @@ section[data-testid="stSidebar"] button p {
     opacity: 1 !important;
 }
 
-/* Specyficzne selektory dla nagłówków sekcji */
+/* Specific selectors for section headers */
 section[data-testid="stSidebar"] [data-testid="stNavGroup"] > div:first-child p,
 section[data-testid="stSidebar"] [data-testid="stNavGroup"] > div p,
 section[data-testid="stSidebar"] [data-testid="stNavGroup"] label,
@@ -29,7 +29,7 @@ section[data-testid="stSidebar"] button[kind="secondary"] p {
     text-shadow: 0 0 2px rgba(0,0,0,0.3) !important;
 }
 
-/* Dla ikon i innych elementów SVG */
+/* For icons and other SVG elements */
 section[data-testid="stSidebar"] svg,
 section[data-testid="stSidebar"] [data-testid="stNavGroup"] svg,
 section[data-testid="stSidebar"] button svg,
@@ -39,7 +39,7 @@ section[data-testid="stSidebar"] [data-testid="baseButton-headerNoPadding"] svg 
     stroke: #fff !important;
 }
 
-/* Zmiana koloru przy najechaniu i zaznaczeniu */
+/* Color change on hover and selection */
 section[data-testid="stSidebar"] [data-testid="stNavGroup"]:hover > div p,
 section[data-testid="stSidebar"] [data-testid="stNavLink"]:hover,
 section[data-testid="stSidebar"] [data-testid="stNavLink"]:hover > div,

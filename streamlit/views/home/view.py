@@ -15,8 +15,8 @@ def load_bookmarks() -> Dict[str, List[Dict[str, str]]]:
         return yaml.safe_load(file)
 
 def get_css():
-    """Wczytaj CSS ze zewnętrznego pliku"""
-    # Ścieżka względna do katalogu projekt
+    """Load CSS from external file"""
+    # Relative path to the project directory
     project_root = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
     css_file = os.path.join(project_root, "views/styles/home.css")
     
