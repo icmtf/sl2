@@ -1,55 +1,544 @@
-"Development":
-    icon: ":material/thumb_up:"
+"PROXY FR":
+    icon: ":material/settings_ethernet:"
     links:
-      - name: "GitHub"
-        url: "https://github.com"
-        description: "Platform for code hosting and collaboration. Features include pull requests, discussions, and project management tools."
-        icon: "https://www.google.com/s2/favicons?domain=github.com&sz=128"
-        tags: ["git", "coding", "opensource"]
-      - name: "Dev.to"
-        url: "https://dev.to"
-        description: "Community of developers sharing ideas and articles. Great for staying updated with tech trends."
-        icon: "https://www.google.com/s2/favicons?domain=dev.to&sz=128"
-        tags: ["community", "blog", "learning"]
+      - name: "McAfee - CORE"
+        url: "https://frc2-core-mapx01.eu.net.intra:4712/Konfigurator/html/html-ui.html?anonym=true&app=Konfigurator"
+        description: "McAfee Web Gateway management interface for CORE network."
+        icon: "https://www.google.com/s2/favicons?domain=mcafee.com&sz=128"
+        tags: ["proxy", "security", "core"]
+      - name: "McAfee - ZINET"
+        url: "https://frm12-zinet-mapx07-mgmt.eu.net.intra:4712/Konfigurator/html/html-ui.html?anonym=true&app=Konfigurator"
+        description: "McAfee Web Gateway management interface for ZINET network."
+        icon: "https://www.google.com/s2/favicons?domain=mcafee.com&sz=128"
+        tags: ["proxy", "security", "zinet"]
+      - name: "McAfee - SOCKS PROD"
+        url: "https://frm06-pre-pvps-ma01-mgmt.eu.net.intra:4712/Konfigurator/html/html-ui.html?anonym=true&app=Konfigurator"
+        description: "McAfee Web Gateway for SOCKS Production environment."
+        icon: "https://www.google.com/s2/favicons?domain=mcafee.com&sz=128"
+        tags: ["proxy", "socks", "production"]
+      - name: "McAfee - SOCKS UAT"
+        url: "https://frm06-pre-dprs-ma01-mgmt.eu.net.intra:4712/Konfigurator/html/html-ui.html?anonym=true&app=Konfigurator"
+        description: "McAfee Web Gateway for SOCKS UAT environment."
+        icon: "https://www.google.com/s2/favicons?domain=mcafee.com&sz=128"
+        tags: ["proxy", "socks", "uat"]
+      - name: "MATD"
+        url: "https://matd-fr.cib.echonet"
+        description: "MATD proxy management portal for France region."
+        icon: "https://www.google.com/s2/favicons?domain=cib.echonet&sz=128"
+        tags: ["proxy", "france", "management"]
 
-"Design":
-    icon: ":material/palette:"
+"PROXY UK":
+    icon: ":material/settings_ethernet:"
     links:
-      - name: "Dribbble"
-        url: "https://dribbble.com"
-        description: "Design inspiration platform showcasing top designer work. Perfect for UI/UX inspiration and trends."
-        icon: "https://www.google.com/s2/favicons?domain=dribbble.com&sz=128"
-        tags: ["design", "inspiration", "ui"]
-      - name: "Figma"
-        url: "https://figma.com"
-        description: "Collaborative interface design tool. Create, share, and prototype your designs in real-time."
-        icon: "https://www.google.com/s2/favicons?domain=figma.com&sz=128"
-        tags: ["design", "prototyping", "collaboration"]
+      - name: "McAfee - Browsing CORE"
+        url: "https://pxhaibam-mgmt.uk.net.intra:4712/Konfigurator/html/html-ui.html?anonym=true&app=Konfigurator"
+        description: "McAfee Web Gateway management for UK CORE browsing."
+        icon: "https://www.google.com/s2/favicons?domain=mcafee.com&sz=128"
+        tags: ["proxy", "security", "uk", "core"]
+      - name: "McAfee - Browsing CS"
+        url: "https://pxhaicsm-mgmt.uk.net.intra:4712/Konfigurator/html/html-ui.html?anonym=true&app=Konfigurator"
+        description: "McAfee Web Gateway management for UK CS browsing."
+        icon: "https://www.google.com/s2/favicons?domain=mcafee.com&sz=128"
+        tags: ["proxy", "security", "uk", "cs"]
+      - name: "McAfee - Browsing Pres"
+        url: "https://pxhaibpm-mgmt.uk.net.intra:4712/Konfigurator/html/html-ui.html?anonym=true&app=Konfigurator"
+        description: "McAfee Web Gateway management for UK Presentation browsing."
+        icon: "https://www.google.com/s2/favicons?domain=mcafee.com&sz=128"
+        tags: ["proxy", "security", "uk", "presentation"]
+      - name: "Whitelist SRA"
+        url: "http://pxconfig.uk.net.intra/MWG/SRA/SRA_Allow_Hosts_Echonet_Whitelist.txt"
+        description: "Whitelisted hosts configuration for SRA access."
+        icon: "https://www.google.com/s2/favicons?domain=uk.net.intra&sz=128"
+        tags: ["proxy", "whitelist", "sra", "configuration"]
+      - name: "McAfee Category check"
+        url: "https://www.trustedsource.org/"
+        description: "McAfee TrustedSource web reputation and categorization service."
+        icon: "https://www.google.com/s2/favicons?domain=trustedsource.org&sz=128"
+        tags: ["proxy", "security", "categorization", "reputation"]
 
-"Learning":
-    icon: ":material/school:"
+DNS:
+    icon: ":material/dns:"
     links:
-      - name: "freeCodeCamp"
-        url: "https://www.freecodecamp.org"
-        description: "Free coding education platform with certifications. Learn web development, Python, and more."
-        icon: "https://www.google.com/s2/favicons?domain=freecodecamp.org&sz=128"
-        tags: ["programming", "education", "free"]
-      - name: "Coursera"
-        url: "https://www.coursera.org"
-        description: "Online learning platform with university-backed courses. Access high-quality education from top institutions."
-        icon: "https://www.google.com/s2/favicons?domain=coursera.org&sz=128"
-        tags: ["education", "courses", "certificates"]
+      - name: "Grid CIB"
+        url: "https://igrid.cib.echonet/"
+        description: "Infoblox GRID Manager for the CIB."
+        icon: "https://www.google.com/s2/favicons?domain=infoblox.com&sz=128"
+        tags:
+          - "network"
+          - "dns"
+          - "management"
+          - "cib"
+      - name: "Grid Group"
+        url: "https://igrid.group.echonet/"
+        description: "Infoblox GRID Manager for the IT Group."
+        icon: "https://www.google.com/s2/favicons?domain=infoblox.com&sz=128"
+        tags:
+          - "network"
+          - "dns"
+          - "management"
+          - "itg"
+      - name: "xGrid Public"
+        url: "https://xgrid.group.echonet/"
+        description: "Infoblox GRID Manager for the public DNS."
+        icon: "https://www.google.com/s2/favicons?domain=infoblox.com&sz=128"
+        tags:
+          - "network"
+          - "dns"
+          - "management"
+          - "cib"
+      - name: "Grid DHCP WiFi"
+        url: "https://wifi-ha-ifx01.uk.net.intra/"
+        description: "Infoblox GRID Manager for the... Lorem ipsum dolor sit amet."
+        icon: "https://www.google.com/s2/favicons?domain=infoblox.com&sz=128"
+        tags:
+          - "network"
+          - "dns"
+          - "dhcp"
+          - "wifi"
+          - "management"
+      - name: "DNS portal"
+        url: "https://inet-services.cib.echonet/dns"
+        description: "Lorem ipsum dolor sit amet, consectetur adipiscing elit."
+        icon: ""
+        tags:
+          - "network"
+          - "dns"
+          - "management"
 
-"Tools":
-    icon: ":material/manufacturing:"
+"FW MGMT":
+    icon: ":material/security:"
     links:
-      - name: "Notion"
-        url: "https://www.notion.so"
-        description: "All-in-one workspace for notes, docs, and collaboration. Perfect for personal and team organization."
-        icon: "https://www.google.com/s2/favicons?domain=notion.so&sz=128"
-        tags: ["productivity", "notes", "organization"]
-      - name: "Vercel"
-        url: "https://vercel.com"
-        description: "Deploy web projects with ease. Perfect for frontend deployment and serverless functions."
-        icon: "https://www.google.com/s2/favicons?domain=vercel.com&sz=128"
-        tags: ["hosting", "deployment", "frontend"]
+      - name: "FMG FR"
+        url: "https://frms-mgt-vfgfm03.eu.net.intra/p/login/"
+        description: "FortiManager management interface for France firewalls."
+        icon: "https://www.google.com/s2/favicons?domain=fortinet.com&sz=128"
+        tags: ["firewall", "security", "management", "france"]
+      - name: "FMG UK"
+        url: "https://ukldnhaftmgr10.uk.net.intra/login.htm"
+        description: "FortiManager management interface for UK firewalls."
+        icon: "https://www.google.com/s2/favicons?domain=fortinet.com&sz=128"
+        tags: ["firewall", "security", "management", "uk"]
+      - name: "FMG SDWAN"
+        url: "https://frm06-nms-pvmg-fm02.eu.net.intra/p/login/"
+        description: "FortiManager for SD-WAN configuration and management."
+        icon: "https://www.google.com/s2/favicons?domain=fortinet.com&sz=128"
+        tags: ["firewall", "security", "sdwan", "management"]
+      - name: "Playflows FR"
+        url: "https://playflows-fr.cib.echonet"
+        description: "Firewall playflow management for France region."
+        icon: "https://www.google.com/s2/favicons?domain=cib.echonet&sz=128"
+        tags: ["firewall", "security", "playflow", "france"]
+      - name: "Playflows UK"
+        url: "https://playflows-uk.cib.echonet"
+        description: "Firewall playflow management for UK region."
+        icon: "https://www.google.com/s2/favicons?domain=cib.echonet&sz=128"
+        tags: ["firewall", "security", "playflow", "uk"]
+      - name: "Firepower 2140 M6"
+        url: "https://10.153.128.45/"
+        description: "Cisco Firepower 2140 web interface for M6 site."
+        icon: "https://www.google.com/s2/favicons?domain=cisco.com&sz=128"
+        tags: ["firewall", "security", "cisco", "m6"]
+      - name: "Firepower 2140 ME"
+        url: "https://10.153.128.46/"
+        description: "Cisco Firepower 2140 web interface for ME site."
+        icon: "https://www.google.com/s2/favicons?domain=cisco.com&sz=128"
+        tags: ["firewall", "security", "cisco", "me"]
+      - name: "Firepower 2130 M6"
+        url: "https://10.153.128.82/"
+        description: "Cisco Firepower 2130 web interface for M6 site."
+        icon: "https://www.google.com/s2/favicons?domain=cisco.com&sz=128"
+        tags: ["firewall", "security", "cisco", "m6"]
+      - name: "Firepower 2130 ME"
+        url: "https://10.153.128.83/"
+        description: "Cisco Firepower 2130 web interface for ME site."
+        icon: "https://www.google.com/s2/favicons?domain=cisco.com&sz=128"
+        tags: ["firewall", "security", "cisco", "me"]
+      - name: "Remote Access ASA"
+        url: "https://10.153.128.47/admin/public/index.html"
+        description: "Cisco ASA management interface for remote access VPN."
+        icon: "https://www.google.com/s2/favicons?domain=cisco.com&sz=128"
+        tags: ["firewall", "security", "vpn", "remote-access"]
+
+"LOAD BALANCING":
+    icon: ":material/device_hub:"
+    links:
+      - name: "VIP F5 FR"
+        url: "/infra/f5"
+        description: "F5 load balancer VIP management for France."
+        icon: "https://www.google.com/s2/favicons?domain=f5.com&sz=128"
+        tags: ["loadbalancer", "f5", "vip", "france"]
+      - name: "VIP F5 UK"
+        url: "/infra/f5-uk"
+        description: "F5 load balancer VIP management for UK."
+        icon: "https://www.google.com/s2/favicons?domain=f5.com&sz=128"
+        tags: ["loadbalancer", "f5", "vip", "uk"]
+      - name: "VIP F5 AMER"
+        url: "https://vs-avi-amer-inet-scripts.xmp.net.intra/public/f5.html"
+        description: "F5 load balancer VIP management for Americas region."
+        icon: "https://www.google.com/s2/favicons?domain=f5.com&sz=128"
+        tags: ["loadbalancer", "f5", "vip", "americas"]
+      - name: "VIP AVI"
+        url: "/infra/avi"
+        description: "AVI Networks load balancer VIP management."
+        icon: "https://www.google.com/s2/favicons?domain=vmware.com&sz=128"
+        tags: ["loadbalancer", "avi", "vip"]
+      - name: "AVI - PROD Intranet"
+        url: "https://avictrl-core-vip.xmp.net.intra"
+        description: "AVI Controller for Production Intranet services."
+        icon: "https://www.google.com/s2/favicons?domain=vmware.com&sz=128"
+        tags: ["loadbalancer", "avi", "production", "intranet"]
+      - name: "AVI - PROD Intranet 2"
+        url: "https://avictrl-core-2.cib.echonet"
+        description: "Secondary AVI Controller for Production Intranet services."
+        icon: "https://www.google.com/s2/favicons?domain=vmware.com&sz=128"
+        tags: ["loadbalancer", "avi", "production", "intranet"]
+      - name: "AVI - PROD Internet"
+        url: "https://avictrl-ipod-vip.xmp.net.intra"
+        description: "AVI Controller for Production Internet services."
+        icon: "https://www.google.com/s2/favicons?domain=vmware.com&sz=128"
+        tags: ["loadbalancer", "avi", "production", "internet"]
+      - name: "AVI - UAT"
+        url: "https://avictrl-core-uat.xmp.net.intra"
+        description: "AVI Controller for UAT environment."
+        icon: "https://www.google.com/s2/favicons?domain=vmware.com&sz=128"
+        tags: ["loadbalancer", "avi", "uat"]
+      - name: "AVI - DEV"
+        url: "https://avictrl-core-dev-vip.xmp.net.intra"
+        description: "AVI Controller for Development environment."
+        icon: "https://www.google.com/s2/favicons?domain=vmware.com&sz=128"
+        tags: ["loadbalancer", "avi", "development"]
+
+"LOGS":
+    icon: ":material/event_note:"
+    links:
+      - name: "Kibana CSIRT"
+        url: "https://csirt.cib.echonet"
+        description: "Kibana dashboard for CSIRT security logs and analysis."
+        icon: "https://www.google.com/s2/favicons?domain=elastic.co&sz=128"
+        tags: ["logs", "security", "kibana", "csirt"]
+      - name: "Kibana Infra"
+        url: "https://kibana-infra-emea-prd.aramchek.cib.echonet"
+        description: "Kibana dashboard for infrastructure logs in EMEA region."
+        icon: "https://www.google.com/s2/favicons?domain=elastic.co&sz=128"
+        tags: ["logs", "infrastructure", "kibana", "emea"]
+      - name: "FortiAnalyzer"
+        url: "https://frm12-log-ppfw-fgfz01.eu.net.intra/"
+        description: "FortiAnalyzer for firewall logs analysis and reporting."
+        icon: "https://www.google.com/s2/favicons?domain=fortinet.com&sz=128"
+        tags: ["logs", "security", "firewall", "fortinet"]
+
+"TOOLS & MONITORING":
+    icon: ":material/monitoring:"
+    links:
+      - name: "Zabbix"
+        url: "https://zabbix.europe.echonet/zabbix/"
+        description: "Zabbix monitoring platform for infrastructure and applications."
+        icon: "https://www.google.com/s2/favicons?domain=zabbix.com&sz=128"
+        tags: ["monitoring", "infrastructure", "alerting"]
+      - name: "Grafana"
+        url: "https://zabbix.europe.echonet/grafana/"
+        description: "Grafana dashboards for infrastructure and application metrics."
+        icon: "https://www.google.com/s2/favicons?domain=grafana.com&sz=128"
+        tags: ["monitoring", "dashboard", "metrics", "visualization"]
+      - name: "Dynatrace"
+        url: "https://dynatrace-emea-core-01.cib.echonet/"
+        description: "Dynatrace APM for application performance monitoring."
+        icon: "https://www.google.com/s2/favicons?domain=dynatrace.com&sz=128"
+        tags: ["monitoring", "apm", "performance"]
+      - name: "Nagios"
+        url: "http://inet-services.cib.echonet/nagios/"
+        description: "Nagios monitoring system for infrastructure checks."
+        icon: "https://www.google.com/s2/favicons?domain=nagios.org&sz=128"
+        tags: ["monitoring", "infrastructure", "checks"]
+      - name: "ADDM"
+        url: "http://parg0paddmnw001.eu.net.intra"
+        description: "Application Discovery and Dependency Mapping tool."
+        icon: "https://www.google.com/s2/favicons?domain=bmc.com&sz=128"
+        tags: ["discovery", "dependency", "mapping"]
+      - name: "MFNA"
+        url: "https://na.cib.echonet"
+        description: "Network automation and management platform."
+        icon: "https://www.google.com/s2/favicons?domain=cib.echonet&sz=128"
+        tags: ["automation", "network", "management"]
+
+"ACCOUNT MGMT":
+    icon: ":material/account_circle:"
+    links:
+      - name: "MyIAM"
+        url: "https://myiam.cib.echonet/identityiq/home.jsf"
+        description: "Identity Access Management portal for user accounts."
+        icon: "https://www.google.com/s2/favicons?domain=sailpoint.com&sz=128"
+        tags: ["iam", "identity", "access", "management"]
+      - name: "Cyber-Ark"
+        url: "https://cyber-ark.cib.echonet"
+        description: "Privileged Access Management solution."
+        icon: "https://www.google.com/s2/favicons?domain=cyberark.com&sz=128"
+        tags: ["pam", "security", "privileged", "access"]
+      - name: "ePassportIDM"
+        url: "https://epassport-idmiiq.cib.echonet"
+        description: "ePassport Identity Management system."
+        icon: "https://www.google.com/s2/favicons?domain=cib.echonet&sz=128"
+        tags: ["idm", "identity", "management"]
+      - name: "LDAP Tool"
+        url: "https://eldaptool.cib.echonet/eldapTool/"
+        description: "LDAP directory management and query tool."
+        icon: "https://www.google.com/s2/favicons?domain=cib.echonet&sz=128"
+        tags: ["ldap", "directory", "query", "tool"]
+
+"Ticketing":
+    icon: ":material/support_agent:"
+    links:
+      - name: "Service Now"
+        url: "https://bnpp.service-now.com/"
+        description: "ServiceNow ITSM platform for incident and service management."
+        icon: "https://www.google.com/s2/favicons?domain=servicenow.com&sz=128"
+        tags: ["itsm", "ticketing", "incident", "management"]
+      - name: "CIB IT Catalog"
+        url: "https://bnpp.service-now.com/myportal?id=sc_category&catalog_id=aa656f4e1b89b8501f90a9fce54bcba7"
+        description: "CIB IT service catalog in ServiceNow."
+        icon: "https://www.google.com/s2/favicons?domain=servicenow.com&sz=128"
+        tags: ["catalog", "itsm", "services"]
+      - name: "IV2 Market Place"
+        url: "https://marketplace.group.echonet/"
+        description: "IV2 services marketplace for ordering and requesting services."
+        icon: "https://www.google.com/s2/favicons?domain=group.echonet&sz=128"
+        tags: ["marketplace", "services", "catalog"]
+      - name: "Tufin"
+        url: "https://securechange-emea.cib.echonet/securechangeworkflow"
+        description: "Tufin SecureChange for firewall change management."
+        icon: "https://www.google.com/s2/favicons?domain=tufin.com&sz=128"
+        tags: ["firewall", "change", "management", "emea"]
+      - name: "One Cloud Services Portal"
+        url: "https://cloud.group.echonet/"
+        description: "Cloud services portal for requesting and managing cloud resources."
+        icon: "https://www.google.com/s2/favicons?domain=group.echonet&sz=128"
+        tags: ["cloud", "services", "portal"]
+      - name: "Tufin Asia"
+        url: "https://securechange-asia.cib.echonet"
+        description: "Tufin SecureChange for firewall change management in Asia region."
+        icon: "https://www.google.com/s2/favicons?domain=tufin.com&sz=128"
+        tags: ["firewall", "change", "management", "asia"]
+      - name: "eMa (SMTP)"
+        url: "https://ema.group.echonet"
+        description: "Email management and administration platform."
+        icon: "https://www.google.com/s2/favicons?domain=group.echonet&sz=128"
+        tags: ["email", "smtp", "management"]
+      - name: "RefWeb"
+        url: "https://refweb.group.echonet"
+        description: "Reference web portal for IT services."
+        icon: "https://www.google.com/s2/favicons?domain=group.echonet&sz=128"
+        tags: ["reference", "portal", "services"]
+
+"Referentials":
+    icon: ":material/switch_access_shortcut:"
+    links:
+      - name: "EasyNet"
+        url: "https://easynet.cib.echonet/"
+        description: "Network device inventory and management system."
+        icon: "https://www.google.com/s2/favicons?domain=cib.echonet&sz=128"
+        tags: ["network", "inventory", "management"]
+      - name: "AssetGen"
+        url: "https://assetgen.group.echonet/Forms/LoginForm.aspx"
+        description: "IT asset management and inventory system."
+        icon: "https://www.google.com/s2/favicons?domain=group.echonet&sz=128"
+        tags: ["asset", "inventory", "management"]
+      - name: "VPIC"
+        url: "https://vpic.group.echonet/index.php"
+        description: "IP address management and allocation tool."
+        icon: "https://www.google.com/s2/favicons?domain=group.echonet&sz=128"
+        tags: ["ipam", "network", "ip"]
+      - name: "BAM+"
+        url: "https://bamplus.london.echonet/start.jspa"
+        description: "Business Application Mapping and management tool."
+        icon: "https://www.google.com/s2/favicons?domain=london.echonet&sz=128"
+        tags: ["application", "mapping", "management"]
+      - name: "Pamela"
+        url: "https://pamela.cib.echonet/Reports/browse/"
+        description: "PAMELA reporting and analytics platform."
+        icon: "https://www.google.com/s2/favicons?domain=cib.echonet&sz=128"
+        tags: ["reporting", "analytics", "reports"]
+
+"LPM":
+    icon: ":material/admin_panel_settings:"
+    links:
+      - name: "CyberArk LPM"
+        url: "https://cyber-ark-cis.cib.echonet/"
+        description: "CyberArk Least Privilege Management for privileged access."
+        icon: "https://www.google.com/s2/favicons?domain=cyberark.com&sz=128"
+        tags: ["security", "pam", "privileged", "lpm"]
+      - name: "CIS AVI"
+        url: "https://avictrl-cis-vip.eu.net.intra"
+        description: "CIS AVI Controller for load balancing management."
+        icon: "https://www.google.com/s2/favicons?domain=vmware.com&sz=128"
+        tags: ["security", "loadbalancer", "avi", "cis"]
+      - name: "CIS FMG"
+        url: "https://frmm-cis-vfgfm01.eu.net.intra"
+        description: "CIS FortiManager for firewall management."
+        icon: "https://www.google.com/s2/favicons?domain=fortinet.com&sz=128"
+        tags: ["security", "firewall", "fortinet", "cis"]
+      - name: "CIS ASA M6"
+        url: "https://frm6-cisvpn-cafw01.eu.net.intra"
+        description: "CIS Cisco ASA for M6 site VPN access."
+        icon: "https://www.google.com/s2/favicons?domain=cisco.com&sz=128"
+        tags: ["security", "vpn", "cisco", "m6"]
+      - name: "CIS ASA ME"
+        url: "https://frme-cisvpn-cafw02.eu.net.intra"
+        description: "CIS Cisco ASA for ME site VPN access."
+        icon: "https://www.google.com/s2/favicons?domain=cisco.com&sz=128"
+        tags: ["security", "vpn", "cisco", "me"]
+      - name: "CIS ISE"
+        url: "https://frmn-ise-m6t6-lpm/admin/login.jsp"
+        description: "CIS Cisco Identity Services Engine for network access control."
+        icon: "https://www.google.com/s2/favicons?domain=cisco.com&sz=128"
+        tags: ["security", "nac", "cisco", "ise"]
+      - name: "CIS PSMP enrollement"
+        url: "https://cyber-ark-cis-psmpenrolment.cib.echonet/"
+        description: "CIS CyberArk Privileged Session Manager enrollment portal."
+        icon: "https://www.google.com/s2/favicons?domain=cyberark.com&sz=128"
+        tags: ["security", "pam", "psmp", "enrollment"]
+
+"DESKTOP":
+    icon: ":material/desktop_windows:"
+    links:
+      - name: "Desk Booking"
+        url: "https://desktop.cib.echonet/desk.asp#Book"
+        description: "Office desk booking and reservation system."
+        icon: "https://www.google.com/s2/favicons?domain=desktop.cib.echonet&sz=128"
+        tags: ["office", "booking", "reservation"]
+      - name: "Clarity"
+        url: "http://clarity.cib.echonet"
+        description: "CA Clarity PPM for project portfolio management."
+        icon: "https://www.google.com/s2/favicons?domain=clarity.cib.echonet&sz=128"
+        tags: ["ppm", "project", "portfolio", "management"]
+      - name: "WiFi First"
+        url: "https://wifi.group.echonet/"
+        description: "WiFi network management and onboarding portal."
+        icon: "https://www.google.com/s2/favicons?domain=wifi.group.echonet&sz=128"
+        tags: ["wifi", "network", "onboarding"]
+      - name: "Kurmi"
+        url: "https://ma-config-tel-cib.eu.net.intra/Kurmi/"
+        description: "Kurmi telephony and unified communications management."
+        icon: "https://www.google.com/s2/favicons?domain=kurmi-software.com&sz=128"
+        tags: ["telephony", "voip", "uc", "management"]
+      - name: "MyPortal"
+        url: "https://bnpp.service-now.com/myportal"
+        description: "ServiceNow personal portal for IT services and requests."
+        icon: "https://www.google.com/s2/favicons?domain=servicenow.com&sz=128"
+        tags: ["portal", "service", "itsm"]
+      - name: "Desktop Infos"
+        url: "https://desktop.cib.echonet"
+        description: "Desktop environment information and documentation portal."
+        icon: "https://www.google.com/s2/favicons?domain=desktop.cib.echonet&sz=128"
+        tags: ["desktop", "documentation", "information"]
+      - name: "e-chargement"
+        url: "http://e-chargement.com/compass/bnpp-doree"
+        description: "Software download and deployment portal."
+        icon: "https://www.google.com/s2/favicons?domain=e-chargement.com&sz=128"
+        tags: ["software", "download", "deployment"]
+
+"DOC":
+    icon: ":material/menu_book:"
+    links:
+      - name: "INET Tools Wiki"
+        url: "https://wiki.cib.echonet/display/inetfrws/INET+Tools+and+Automation"
+        description: "Wiki for INET tools and automation documentation."
+        icon: "https://www.google.com/s2/favicons?domain=wiki.cib.echonet&sz=128"
+        tags: ["documentation", "wiki", "inet", "tools"]
+      - name: "EMEA iNet Baseline"
+        url: "https://collab.cib.echonet/iandp/sites/Telecoms-and-Data-Centre/Inet/SitePages/iNET%20Baselines.aspx"
+        description: "EMEA iNET baseline configuration documentation."
+        icon: "https://www.google.com/s2/favicons?domain=collab.cib.echonet&sz=128"
+        tags: ["documentation", "baseline", "inet", "emea"]
+      - name: "NET Bandeau"
+        url: "http://easy-net-intra/reseaux/haut.php"
+        description: "Network dashboard and status information."
+        icon: "https://www.google.com/s2/favicons?domain=easy-net-intra&sz=128"
+        tags: ["network", "dashboard", "status"]
+      - name: "Diagrams"
+        url: "http://easy-net-intra/reseaux/diagram.php"
+        description: "Network architecture diagrams and topology."
+        icon: "https://www.google.com/s2/favicons?domain=easy-net-intra&sz=128"
+        tags: ["network", "diagram", "topology", "architecture"]
+      - name: "Unix UserGuide"
+        url: "https://wiki.cib.echonet/display/INFDS/BNP+Linux+Userguide"
+        description: "Linux user guide and documentation for BNP systems."
+        icon: "https://www.google.com/s2/favicons?domain=wiki.cib.echonet&sz=128"
+        tags: ["documentation", "linux", "unix", "guide"]
+      - name: "Extended Rights guides"
+        url: "https://collab.cib.echonet/iandp/sites/Risk-and-Strategy/IT%20Security%20Operations/SecProd-OS-and-Services/UserGuides/SitePages/Home.aspx"
+        description: "Guidelines for using extended rights and privileges."
+        icon: "https://www.google.com/s2/favicons?domain=collab.cib.echonet&sz=128"
+        tags: ["documentation", "security", "rights", "guide"]
+
+"Dev":
+    icon: ":material/code:"
+    links:
+      - name: "Ansible Tower"
+        url: "https://ansible-tower.cib.echonet/#/login"
+        description: "Ansible Tower automation platform for production environment."
+        icon: "https://www.google.com/s2/favicons?domain=ansible.com&sz=128"
+        tags: ["automation", "ansible", "devops", "production"]
+      - name: "Ansible Tower Staging"
+        url: "https://ansible-tower.staging.echonet/#/login"
+        description: "Ansible Tower automation platform for staging environment."
+        icon: "https://www.google.com/s2/favicons?domain=ansible.com&sz=128"
+        tags: ["automation", "ansible", "devops", "staging"]
+      - name: "Bitbucket INETFRWS"
+        url: "https://bitbucket.cib.echonet/projects/INETFRWS"
+        description: "Bitbucket repository for INET frameworks and services."
+        icon: "https://www.google.com/s2/favicons?domain=bitbucket.org&sz=128"
+        tags: ["git", "repository", "code", "inet"]
+      - name: "Artifactory"
+        url: "https://artifactory.cib.echonet/"
+        description: "JFrog Artifactory binary repository manager."
+        icon: "https://www.google.com/s2/favicons?domain=jfrog.com&sz=128"
+        tags: ["repository", "artifacts", "binaries"]
+      - name: "S3 Browser"
+        url: "https://s3browser.group.echonet/?bucket_name=FR_DEV_S3_INETFRWS&storage_class=BASIC&region=EMEA&locality=FR&access_key=user_fr_dev_s3_inetfrws_rw"
+        description: "Web interface for S3 object storage access."
+        icon: "https://www.google.com/s2/favicons?domain=group.echonet&sz=128"
+        tags: ["s3", "storage", "object", "browser"]
+      - name: "iPKI - Group"
+        url: "https://certis.group.echonet/"
+        description: "Internal PKI certificate management for Group services."
+        icon: "https://www.google.com/s2/favicons?domain=certis.group.echonet&sz=128"
+        tags: ["pki", "certificate", "security"]
+
+"MISC":
+    icon: ":material/apps:"
+    links:
+      - name: "HVD (Citrix WorkSpace)"
+        url: "https://workspace.europe.echonet"
+        description: "Citrix virtual desktop environment for remote access."
+        icon: "https://www.google.com/s2/favicons?domain=citrix.com&sz=128"
+        tags: ["citrix", "vdi", "remote", "desktop"]
+      - name: "Vcenter Parvi02"
+        url: "https://par-vi02.eu.net.intra/ui"
+        description: "VMware vCenter management interface for Parvi02 cluster."
+        icon: "https://www.google.com/s2/favicons?domain=vmware.com&sz=128"
+        tags: ["vmware", "vcenter", "virtualization", "parvi02"]
+      - name: "Vcenter Parvi03"
+        url: "https://par-vi03.eu.net.intra/ui"
+        description: "VMware vCenter management interface for Parvi03 cluster."
+        icon: "https://www.google.com/s2/favicons?domain=vmware.com&sz=128"
+        tags: ["vmware", "vcenter", "virtualization", "parvi03"]
+      - name: "VPIC"
+        url: "https://vpic.group.echonet/index.php"
+        description: "IP address management and allocation tool."
+        icon: "https://www.google.com/s2/favicons?domain=group.echonet&sz=128"
+        tags: ["ipam", "network", "ip"]
+      - name: "ISE Remote Access"
+        url: "https://frm06-pise-m6q8-01/admin/login.jsp"
+        description: "Cisco Identity Services Engine for remote access control."
+        icon: "https://www.google.com/s2/favicons?domain=cisco.com&sz=128"
+        tags: ["security", "access", "cisco", "ise"]
+      - name: "ISE Admin"
+        url: "https://eurotacacsise.europe.echonet/admin/login.jsp"
+        description: "Cisco Identity Services Engine administrative interface."
+        icon: "https://www.google.com/s2/favicons?domain=cisco.com&sz=128"
+        tags: ["security", "access", "cisco", "ise"]
+      - name: "PSMP enrollement"
+        url: "https://cyber-ark-psmpenrolment.cib.echonet/"
+        description: "CyberArk Privileged Session Manager enrollment portal."
+        icon: "https://www.google.com/s2/favicons?domain=cyberark.com&sz=128"
+        tags: ["security", "pam", "psmp", "enrollment"]
