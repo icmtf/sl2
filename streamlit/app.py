@@ -1,6 +1,17 @@
 import streamlit as st
+import os
 
 st.set_page_config(page_title="iNET Services", layout="wide")
+
+# Załaduj styl CSS dla całej aplikacji
+def load_css():
+    css_file = os.path.join(os.path.dirname(__file__), "views/styles/main.css")
+    with open(css_file, "r") as f:
+        css = f.read()
+        st.markdown(f"<style>{css}</style>", unsafe_allow_html=True)
+
+# Zastosuj styl CSS
+load_css()
 
 if "logged_in" not in st.session_state:
     st.session_state.logged_in = False
