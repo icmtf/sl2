@@ -1,5 +1,0 @@
-from .page1 import page1_view
-from .page2 import page2_view
-from .view import validation_status_view
-
-__all__ = ['page1_view', 'page2_view', 'validation_status_view']

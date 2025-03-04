@@ -42,15 +42,15 @@ device_details = st.Page("views/testing/device_details.py", title="Device Detail
 # Compliance Status pages
 backup_status = st.Page("views/backup_status/view.py", title="Backup Status", icon=":material/backup:", url_path="backup_status")
 operational_status = st.Page("views/operational_status/view.py", title="Operational Status", icon=":material/check_circle:", url_path="operational_status")
-validation_status = st.Page("views/validation_status/view.py", title="Validation Status", icon=":material/check_circle:", url_path="validation_status")
+validation_overview = st.Page("views/validation_status/view.py", title="Validation Overview", icon=":material/check_circle:", url_path="validation_status")
 validation_cisco = st.Page("views/validation_status/cisco.py", title="Cisco", icon=":material/router:", url_path="validation_cisco")
 validation_fortinet = st.Page("views/validation_status/fortinet.py", title="Fortinet", icon=":material/security:", url_path="validation_fortinet")
 
 # Remote Access pages
-from views.remote_access import page1, page2
+from views.remote_access import vpn_sessions, mac_table
 
-remote_access_p1 = st.Page(page1.show, title="Remote Access P1", icon=":material/vpn_key:", url_path="remote_access_1")
-remote_access_p2 = st.Page(page2.show, title="Remote Access P2", icon=":material/vpn_key:", url_path="remote_access_2")
+vpn_session = st.Page(vpn_sessions.show, title="VPN Sessions", icon=":material/vpn_key:", url_path="vpn_sessions")
+mac_table_page = st.Page(mac_table.show, title="MAC Table", icon=":material/lan:", url_path="mac_table")
 
 if st.session_state.logged_in:
     pg = st.navigation(
@@ -58,14 +58,16 @@ if st.session_state.logged_in:
             "": [logout_page, home_page],
             "Compliance Status": [
                 backup_status,
-                operational_status,
-                validation_status,
+                operational_status
+            ],
+            "Validation Status": [
+                validation_overview,
                 validation_cisco,
                 validation_fortinet
             ],
             "Remote Access": [
-                remote_access_p1,
-                remote_access_p2
+                vpn_session,
+                mac_table_page
             ],
             "Testing": [global_overview, device_details],
         }

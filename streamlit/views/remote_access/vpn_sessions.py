@@ -53,7 +53,7 @@ def get_unique_sorted_values(df, column):
     return sorted([x for x in df[column].unique() if x is not None])
 
 def show():
-    st.title("Remote Access Status")
+    st.title("VPN Sessions")
     
     # Get data
     data = get_remote_access_data()

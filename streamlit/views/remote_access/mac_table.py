@@ -14,7 +14,7 @@ def get_arp_data():
     return []
 
 def show():
-    st.title("ARP Table")
+    st.title("MAC Table")
     
     # Get data
     data = get_arp_data()

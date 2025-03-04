@@ -5,7 +5,7 @@ import pandas as pd
 import re
 
 def format_validation_message(message):
-    """Wyświetl wiadomość jako blok kodu"""
+    """Display message as a code block"""
     try:
         # Remove quotes from message
         if isinstance(message, str):
@@ -47,7 +47,7 @@ try:
             
             failed_checks = {}
             
-            # Przetwarzanie nowej struktury danych
+            # Processing new data structure
             config_validation = validation_data.get('config_validation', {})
             for check_name, check_data in config_validation.items():
                 if isinstance(check_data, dict):
