@@ -88,51 +88,61 @@ def get_s3_backups_data():
     """Get backup data from S3 and process it"""
     with tracer.start_as_current_span("get_s3_backups_data"):
         try:
-            response = s3_client.list_objects_v2(
-                Bucket=config['S3_BUCKET'],
-                Prefix=f"{config['S3_BACKUPS_ROOT_DIR']}/"
-            )
+            # Użycie paginatora zamiast pojedynczego wywołania list_objects_v2
+            paginator = s3_client.get_paginator('list_objects_v2')
             
             backups = {}
             templates = {}
             
-            # First, find all template.json files
-            for obj in response.get('Contents', []):
-                key = obj['Key']
-                parts = key.split('/')
-                if len(parts) == 4 and parts[-1] == 'template.json':
-                    device_class, vendor = parts[1:3]
-                    template_data = get_s3_file_content(key)
-                    if template_data:
-                        templates[f"{device_class}/{vendor}"] = template_data
+            # First, find all template.json files using pagination
+            template_pages = paginator.paginate(
+                Bucket=config['S3_BUCKET'],
+                Prefix=f"{config['S3_BACKUPS_ROOT_DIR']}/"
+            )
             
-            # Now process backup.json files
-            for obj in response.get('Contents', []):
-                key = obj['Key']
-                parts = key.split('/')
-                if len(parts) == 5 and parts[-1] == 'backup.json':
-                    device_class, vendor, hostname = parts[1:4]
-                    backup_data = get_s3_file_content(key)
-                    if backup_data:
-                        template_key = f"{device_class}/{vendor}"
-                        has_schema = template_key in templates
-                        
-                        # Add backup_json_data to the backups dictionary
-                        backups[hostname] = {
-                            'device_class': device_class,
-                            'vendor': vendor,
-                            'schema': has_schema,
-                            'valid_schema': None,
-                            'backup_json_data': backup_data
-                        }
-                        
-                        # Validate against template
-                        if has_schema:
-                            try:
-                                validate(instance=backup_data, schema=templates[template_key])
-                                backups[hostname]['valid_schema'] = True
-                            except ValidationError:
-                                backups[hostname]['valid_schema'] = False
+            for page in template_pages:
+                for obj in page.get('Contents', []):
+                    key = obj['Key']
+                    parts = key.split('/')
+                    if len(parts) == 4 and parts[-1] == 'template.json':
+                        device_class, vendor = parts[1:3]
+                        template_data = get_s3_file_content(key)
+                        if template_data:
+                            templates[f"{device_class}/{vendor}"] = template_data
+            
+            # Now process backup.json files using pagination again
+            backup_pages = paginator.paginate(
+                Bucket=config['S3_BUCKET'],
+                Prefix=f"{config['S3_BACKUPS_ROOT_DIR']}/"
+            )
+            
+            for page in backup_pages:
+                for obj in page.get('Contents', []):
+                    key = obj['Key']
+                    parts = key.split('/')
+                    if len(parts) == 5 and parts[-1] == 'backup.json':
+                        device_class, vendor, hostname = parts[1:4]
+                        backup_data = get_s3_file_content(key)
+                        if backup_data:
+                            template_key = f"{device_class}/{vendor}"
+                            has_schema = template_key in templates
+                            
+                            # Add backup_json_data to the backups dictionary
+                            backups[hostname] = {
+                                'device_class': device_class,
+                                'vendor': vendor,
+                                'schema': has_schema,
+                                'valid_schema': None,
+                                'backup_json_data': backup_data
+                            }
+                            
+                            # Validate against template
+                            if has_schema:
+                                try:
+                                    validate(instance=backup_data, schema=templates[template_key])
+                                    backups[hostname]['valid_schema'] = True
+                                except ValidationError:
+                                    backups[hostname]['valid_schema'] = False
             
             return backups
         except ClientError as e:
@@ -143,7 +153,9 @@ def get_s3_validation_and_opstatus_data():
     """Get validation data from S3"""
     with tracer.start_as_current_span("get_s3_validation_and_opstatus_data"):
         try:
-            response = s3_client.list_objects_v2(
+            # Użycie paginatora zamiast pojedynczego wywołania list_objects_v2
+            paginator = s3_client.get_paginator('list_objects_v2')
+            pages = paginator.paginate(
                 Bucket=config['S3_BUCKET'],
                 Prefix=f"{config['S3_BACKUPS_ROOT_DIR']}/"
             )
@@ -151,27 +163,28 @@ def get_s3_validation_and_opstatus_data():
             validation_data = {}
             opstatus_data = []
             
-            for obj in response.get('Contents', []):
-                key = obj['Key']
-                parts = key.split('/')
-                
-                if len(parts) == 5 and parts[-1] in ['operational_status.json', 'config_validation.json']:
-                    device_class, vendor, hostname = parts[1:4]
-                    file_type = parts[-1]
+            for page in pages:
+                for obj in page.get('Contents', []):
+                    key = obj['Key']
+                    parts = key.split('/')
                     
-                    file_content = get_s3_file_content(key)
-                    if file_content:
-                        if hostname not in validation_data:
-                            validation_data[hostname] = {
-                                'device_class': device_class,
-                                'vendor': vendor,
-                                'validation_data': {},
-                            }
+                    if len(parts) == 5 and parts[-1] in ['operational_status.json', 'config_validation.json']:
+                        device_class, vendor, hostname = parts[1:4]
+                        file_type = parts[-1]
                         
-                        if file_type == 'config_validation.json':
-                            validation_data[hostname]['validation_data'] = file_content
-                        elif file_type == 'operational_status.json':
-                            opstatus_data.append(file_content)
+                        file_content = get_s3_file_content(key)
+                        if file_content:
+                            if hostname not in validation_data:
+                                validation_data[hostname] = {
+                                    'device_class': device_class,
+                                    'vendor': vendor,
+                                    'validation_data': {},
+                                }
+                            
+                            if file_type == 'config_validation.json':
+                                validation_data[hostname]['validation_data'] = file_content
+                            elif file_type == 'operational_status.json':
+                                opstatus_data.append(file_content)
             
             return validation_data, opstatus_data
         except ClientError as e:
