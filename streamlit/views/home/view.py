@@ -1,5 +1,6 @@
 import streamlit as st
 import yaml
+import os
 from typing import Dict, List
 
 def configure_page():
@@ -14,79 +15,13 @@ def load_bookmarks() -> Dict[str, List[Dict[str, str]]]:
         return yaml.safe_load(file)
 
 def get_css():
-    return """
-    <style>
-        .bookmark-container {
-            padding: 1rem;
-            border-radius: 12px;
-            margin-bottom: 1.5rem;
-            transition: all 0.3s ease;
-            position: relative;
-            background-color: #1e1e1e;
-            border: 1px solid #333;
-            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
-        }
-        
-        .bookmark-container:hover {
-            transform: translateY(-3px);
-            box-shadow: 0 6px 12px rgba(0, 0, 0, 0.2);
-            border-color: #666;
-        }
-        
-        .bookmark-header {
-            display: flex;
-            align-items: center;
-            margin-bottom: 0.5rem;
-        }
-        
-        .bookmark-icon {
-            width: 24px;
-            height: 24px;
-            margin-right: 0.5rem;
-        }
-        
-        .bookmark-title {
-            font-size: 1.1rem;
-            font-weight: 600;
-            margin: 0;
-            color: #ffffff;
-            text-decoration: none;
-        }
-        
-        .bookmark-description {
-            font-size: 0.9rem;
-            line-height: 1.4;
-            margin: 0.5rem 0;
-            color: #b0b0b0;
-        }
-        
-        .bookmark-tags {
-            display: flex;
-            flex-wrap: wrap;
-            gap: 0.5rem;
-            margin-top: 0.5rem;
-        }
-        
-        .bookmark-tag {
-            font-size: 0.8rem;
-            padding: 0.2rem 0.6rem;
-            border-radius: 12px;
-            background-color: #333;
-            color: #fff;
-        }
-        
-        .category-title {
-            font-size: 1.3rem;
-            margin-bottom: 1rem;
-            padding-bottom: 0.5rem;
-            border-bottom: 2px solid #666;
-            color: #ffffff;
-            display: flex;
-            align-items: center;
-            gap: 0.5rem;
-        }
-    </style>
-    """
+    """Wczytaj CSS ze zewnętrznego pliku"""
+    # Ścieżka względna do katalogu projekt
+    project_root = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+    css_file = os.path.join(project_root, "views/styles/home.css")
+    
+    with open(css_file, "r") as f:
+        return f"<style>{f.read()}</style>"
 
 def get_all_tags(bookmarks: Dict[str, List[Dict[str, str]]]) -> List[str]:
     """Extract all unique tags from bookmarks"""

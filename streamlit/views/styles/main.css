@@ -1,3 +1,48 @@
 section[data-testid="stSidebar"] {
     background-color: #00915a !important;
 }
+
+/* Główne selektory dla białych tekstów w całym sidebarze */
+section[data-testid="stSidebar"] *,
+section[data-testid="stSidebar"] .element-container *,
+section[data-testid="stSidebar"] p,
+section[data-testid="stSidebar"] span,
+section[data-testid="stSidebar"] a,
+section[data-testid="stSidebar"] div,
+section[data-testid="stSidebar"] li,
+section[data-testid="stSidebar"] label,
+section[data-testid="stSidebar"] button p {
+    color: #fff !important;
+    opacity: 1 !important;
+}
+
+/* Specyficzne selektory dla nagłówków sekcji */
+section[data-testid="stSidebar"] [data-testid="stNavGroup"] > div:first-child p,
+section[data-testid="stSidebar"] [data-testid="stNavGroup"] > div p,
+section[data-testid="stSidebar"] [data-testid="stNavGroup"] label,
+section[data-testid="stSidebar"] [aria-label="Menu"] div p,
+section[data-testid="stSidebar"] div[role="navigation"] div:not([role]) p,
+section[data-testid="stSidebar"] button[kind="secondary"] p {
+    color: #fff !important;
+    opacity: 1 !important;
+    font-weight: 600 !important;
+    text-shadow: 0 0 2px rgba(0,0,0,0.3) !important;
+}
+
+/* Dla ikon i innych elementów SVG */
+section[data-testid="stSidebar"] svg,
+section[data-testid="stSidebar"] [data-testid="stNavGroup"] svg,
+section[data-testid="stSidebar"] button svg,
+section[data-testid="stSidebar"] [data-testid="baseButton-headerNoPadding"] svg {
+    fill: #fff !important;
+    color: #fff !important;
+    stroke: #fff !important;
+}
+
+/* Zmiana koloru przy najechaniu i zaznaczeniu */
+section[data-testid="stSidebar"] [data-testid="stNavGroup"]:hover > div p,
+section[data-testid="stSidebar"] [data-testid="stNavLink"]:hover,
+section[data-testid="stSidebar"] [data-testid="stNavLink"]:hover > div,
+section[data-testid="stSidebar"] [data-testid="stNavLink"]:hover p {
+    color: #f0f0f0 !important;
+}
