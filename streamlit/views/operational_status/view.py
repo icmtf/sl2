@@ -30,27 +30,65 @@ def load_opstatus_data():
         opstatus_data = redis_client.get("s3_opstatus")
         if opstatus_data:
             data = json.loads(opstatus_data)
-            return {item['hostname']: item for item in data} if isinstance(data, list) else data
+            
+            # Convert list to dictionary by hostname if needed
+            if isinstance(data, list):
+                result = {}
+                for item in data:
+                    if isinstance(item, dict) and 'hostname' in item:
+                        result[item['hostname']] = item
+                    else:
+                        # Log problematic items for debugging
+                        print(f"Skipping opstatus item without hostname: {item}")
+                return result
+            # If already a dictionary, return as is
+            elif isinstance(data, dict):
+                return data
+            else:
+                # If not list or dict, return empty dict
+                print(f"Unexpected s3_opstatus data type: {type(data)}")
+                return {}
         return {}
     except Exception as e:
         st.error(f"Error loading operational status data: {str(e)}")
         return {}
 
 def get_operational_status(hostname, opstatus_data, status_key):
-    """Get operational status for a specific key with new structure"""
+    """Get operational status for a specific key"""
     try:
         device_data = opstatus_data.get(hostname, {})
-        operational_data = device_data.get('operational_status', {})
-        status_info = operational_data.get(status_key, {})
-        status = status_info.get('status', 'N/A')
-        message = status_info.get('message', '')
         
-        message = message.strip('"')
-        if message in ['No message found', '', 'NA']:
-            message = ''
+        # Sprawdź strukturę danych - może być bezpośrednio w device_data lub w 'operational_status'
+        if 'operational_status' in device_data:
+            # Struktura: {'hostname': {'operational_status': {...}, ...}}
+            operational_data = device_data.get('operational_status', {})
+        else:
+            # Struktura: {'hostname': {'SSH_port': {...}, 'HTTPS_port': {...}, ...}}
+            operational_data = device_data
+        
+        # Pobierz informacje o statusie
+        if status_key in operational_data:
+            status_info = operational_data.get(status_key, {})
             
-        return status, message
-    except Exception:
+            # Sprawdź format danych statusu
+            if isinstance(status_info, dict):
+                status = status_info.get('status', 'N/A')
+                message = status_info.get('message', '')
+            else:
+                # Status może być bezpośrednią wartością
+                status = status_info
+                message = ''
+                
+            # Oczyść wiadomość
+            if isinstance(message, str):
+                message = message.strip('"')
+                if message in ['No message found', '', 'NA']:
+                    message = ''
+            
+            return status, message
+        return 'N/A', ''
+    except Exception as e:
+        print(f"Error in get_operational_status for {hostname}, {status_key}: {str(e)}")
         return 'N/A', ''
 
 def get_colored_status(status):
@@ -77,22 +115,46 @@ def display_device_details(device, opstatus_data):
             st.write(f"**Hostname:** {hostname}")
             st.write(f"**IP Address:** {device.get('ip', 'N/A')}")
             st.write(f"**Country:** {device.get('country', 'N/A')}")
-            st.write(f"**Vendor:** {device_opstatus.get('vendor', 'N/A')}")
+            st.write(f"**Vendor:** {device_opstatus.get('vendor', device.get('vendor', 'N/A'))}")
         
         with col2:
             st.write("##### Operational Status Details")
+            
+            # Ustal, gdzie są dane operational_status
+            operational_status = None
             if 'operational_status' in device_opstatus:
+                operational_status = device_opstatus['operational_status']
                 last_update = device_opstatus.get('date', 'N/A')
                 st.write(f"**Last Updated:** {last_update}")
-                
-                for key, data in device_opstatus['operational_status'].items():
-                    status = data.get('status', 'N/A')
-                    message = data.get('message', '').strip('"')
-                    if message in ['No message found', '', 'NA']:
-                        message = 'No additional information'
-                    
-                    colored_status = get_colored_status(status)
-                    st.write(f"**{key}:** {colored_status} ({status}) _{message}_")
+            else:
+                # Sprawdź, czy dane są bezpośrednio w device_opstatus
+                operational_keys = ['SSH_port', 'HTTPS_port', 'SNMP', 'remote_auth', 'syslog']
+                if any(key in device_opstatus for key in operational_keys):
+                    operational_status = device_opstatus
+                    last_update = device_opstatus.get('date', 'N/A')
+                    st.write(f"**Last Updated:** {last_update}")
+            
+            if operational_status:
+                for key in ['SSH_port', 'HTTPS_port', 'SNMP', 'remote_auth', 'syslog']:
+                    if key in operational_status:
+                        status_info = operational_status[key]
+                        
+                        # Obsługa różnych formatów danych
+                        if isinstance(status_info, dict):
+                            status = status_info.get('status', 'N/A')
+                            message = status_info.get('message', '')
+                            if isinstance(message, str):
+                                message = message.strip('"')
+                                if message in ['No message found', '', 'NA']:
+                                    message = 'No additional information'
+                        else:
+                            status = status_info if isinstance(status_info, str) else 'N/A'
+                            message = 'No additional information'
+                        
+                        colored_status = get_colored_status(status)
+                        st.write(f"**{key}:** {colored_status} ({status}) _{message}_")
+            else:
+                st.warning("No operational status data available for this device.")
 
 # Main view
 st.title('Operational Status')

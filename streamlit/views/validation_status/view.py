@@ -49,7 +49,16 @@ else:
 
     # Sum-up table in the left column
     with col1:
-        df_sum = pd.DataFrame({"Status": ["OK", "KO", "NA", "Selected","Total"], "Device count": [device_OK, device_KO, device_NA, f"{selected} ({ratio})", device_total] })
+        df_sum = pd.DataFrame({
+            "Status": ["OK", "KO", "NA", "Selected", "Total"], 
+            "Device count": [
+                str(device_OK),
+                str(device_KO),
+                str(device_NA),
+                f"{selected} ({ratio})",
+                str(device_total)
+            ]
+        })
         st.write("Summary")
         st.dataframe(df_sum, hide_index=True)
     # Displaying filters and the dataframe after filters are applied in the 2nd col
@@ -57,7 +66,7 @@ else:
         config_dynamic_filters.display_filters(location="columns", num_columns=3)
 
     st.dataframe(
-        filtered_config_df.style.applymap(highlight_status, subset=compliance_items),
+        filtered_config_df.style.map(highlight_status, subset=compliance_items),
         use_container_width=True,
         hide_index=True,
         selection_mode="single-row",
