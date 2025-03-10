@@ -5,6 +5,35 @@ import json
 import os
 from datetime import datetime
 
+def debug_json_structure(data, max_level=3, current_level=0, prefix=""):
+    """Funkcja pomocnicza do debugowania struktury danych JSON"""
+    if current_level >= max_level:
+        return f"{prefix}[zbyt głęboki poziom - pominięto]\n"
+    
+    result = ""
+    indent = "  " * current_level
+    
+    if isinstance(data, dict):
+        for key, value in list(data.items())[:5]:  # Pokaż tylko pierwsze 5 kluczy
+            if isinstance(value, (dict, list)):
+                result += f"{prefix}{indent}'{key}': {type(value).__name__}\n"
+                result += debug_json_structure(value, max_level, current_level + 1, prefix)
+            else:
+                result += f"{prefix}{indent}'{key}': {type(value).__name__} = {value}\n"
+        if len(data) > 5:
+            result += f"{prefix}{indent}... i {len(data) - 5} więcej kluczy\n"
+    
+    elif isinstance(data, list):
+        if len(data) > 0:
+            result += f"{prefix}{indent}[0]: {type(data[0]).__name__}\n"
+            result += debug_json_structure(data[0], max_level, current_level + 1, prefix)
+            if len(data) > 1:
+                result += f"{prefix}{indent}... i {len(data) - 1} więcej elementów\n"
+        else:
+            result += f"{prefix}{indent}pusta lista\n"
+    
+    return result
+
 REDIS_URL = os.getenv('REDIS_URL', 'redis://redis:6379')
 redis_client = redis.Redis.from_url(REDIS_URL)
 
@@ -31,15 +60,40 @@ def load_opstatus_data():
         if opstatus_data:
             data = json.loads(opstatus_data)
             
+            # Dodajmy więcej diagnostyki
+            print(f"Typ danych s3_opstatus: {type(data)}")
+            if isinstance(data, list):
+                print(f"Lista zawiera {len(data)} elementów")
+                if len(data) > 0:
+                    sample_item = data[0]
+                    if isinstance(sample_item, dict):
+                        print(f"Przykładowe klucze w pierwszym elemencie: {list(sample_item.keys())}")
+                        # Wykorzystaj funkcję do głębszej analizy struktury
+                        print("\nAnaliza struktury danych:")
+                        print(debug_json_structure(sample_item, max_level=4))
+            
             # Convert list to dictionary by hostname if needed
             if isinstance(data, list):
                 result = {}
-                for item in data:
-                    if isinstance(item, dict) and 'hostname' in item:
-                        result[item['hostname']] = item
-                    else:
-                        # Log problematic items for debugging
-                        print(f"Skipping opstatus item without hostname: {item}")
+                skipped_count = 0
+                for i, item in enumerate(data):
+                    if isinstance(item, dict):
+                        # Sprawdź dokładnie, czy 'hostname' znajduje się w słowniku
+                        contains_hostname = False
+                        for key in item.keys():
+                            if key == 'hostname':
+                                contains_hostname = True
+                                break
+                        
+                        if contains_hostname:
+                            result[item['hostname']] = item
+                        else:
+                            # Log problematic items for debugging
+                            skipped_count += 1
+                            if skipped_count <= 3:  # Ograniczmy liczbę logów do pierwszych kilku
+                                print(f"Skipping opstatus item without hostname (keys: {list(item.keys())}): {item}")
+                
+                print(f"Przetworzono {len(result)} elementów, pominięto {skipped_count}")
                 return result
             # If already a dictionary, return as is
             elif isinstance(data, dict):
