@@ -46,6 +46,7 @@ validation_overview = st.Page("views/validation_status/view.py", title="Validati
 validation_cisco = st.Page("views/validation_status/cisco.py", title="Cisco", icon=":material/router:", url_path="validation_cisco")
 validation_fortinet = st.Page("views/validation_status/fortinet.py", title="Fortinet", icon=":material/security:", url_path="validation_fortinet")
 validation_f5 = st.Page("views/validation_status/f5.py", title="F5", icon=":material/dns:", url_path="validation_f5")
+validation_checkpoint = st.Page("views/validation_status/checkpoint.py", title="CheckPoint", icon=":material/security:", url_path="validation_checkpoint")
 
 # Remote Access pages
 from views.remote_access import vpn_sessions, mac_table
@@ -65,7 +66,8 @@ if st.session_state.logged_in:
                 validation_overview,
                 validation_cisco,
                 validation_fortinet,
-                validation_f5
+                validation_f5,
+                validation_checkpoint
             ],
             "Remote Access": [
                 vpn_session,
