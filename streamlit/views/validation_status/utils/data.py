@@ -16,7 +16,17 @@ def get_compliance_status(hostname, compliance_data, compliance_type, item):
         data_field = {"validation_data": "config_validation", "operational_status_data": "operational_status_data"}[compliance_type]
         device_data = compliance_data.get(hostname, {})
         data = device_data.get(compliance_type, {})
-        return data[data_field][item]['status']
+        
+        # Przekształć item na małe litery
+        item_lower = item.lower()
+        
+        # Wyszukaj klucz niezależnie od wielkości liter
+        for key in data[data_field]:
+            if key.lower() == item_lower:
+                return data[data_field][key]['status']
+        
+        # Jeśli nie znaleziono dopasowania
+        return 'N/A'
     except Exception:
         return 'N/A'
 

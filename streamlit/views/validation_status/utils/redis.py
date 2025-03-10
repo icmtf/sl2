@@ -34,10 +34,20 @@ def load_backup_data():
 
 def load_compliance_data():
     try:
-        compliance_data = redis_client.get("s3_compliance")
-        if compliance_data:
-            return json.loads(compliance_data)
-        return {}
+        compliance_data = {}
+        validation_keys = redis_client.keys("s3_validation:*")
+        
+        for key in validation_keys:
+            hostname = key.decode().split(':')[1]
+            data = redis_client.hgetall(key)
+            if data and b'validation_data' in data:
+                validation_data = json.loads(data[b'validation_data'].decode())
+                compliance_data[hostname] = {
+                    'validation_data': validation_data,
+                    'vendor': data[b'vendor'].decode() if b'vendor' in data else 'Unknown'
+                }
+        
+        return compliance_data
     except Exception as e:
         st.error(f"Error loading compliance data: {str(e)}")
         return {}
