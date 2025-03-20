@@ -5,34 +5,8 @@ import json
 import os
 from datetime import datetime
 
-def debug_json_structure(data, max_level=3, current_level=0, prefix=""):
-    """Funkcja pomocnicza do debugowania struktury danych JSON"""
-    if current_level >= max_level:
-        return f"{prefix}[zbyt głęboki poziom - pominięto]\n"
-    
-    result = ""
-    indent = "  " * current_level
-    
-    if isinstance(data, dict):
-        for key, value in list(data.items())[:5]:  # Pokaż tylko pierwsze 5 kluczy
-            if isinstance(value, (dict, list)):
-                result += f"{prefix}{indent}'{key}': {type(value).__name__}\n"
-                result += debug_json_structure(value, max_level, current_level + 1, prefix)
-            else:
-                result += f"{prefix}{indent}'{key}': {type(value).__name__} = {value}\n"
-        if len(data) > 5:
-            result += f"{prefix}{indent}... i {len(data) - 5} więcej kluczy\n"
-    
-    elif isinstance(data, list):
-        if len(data) > 0:
-            result += f"{prefix}{indent}[0]: {type(data[0]).__name__}\n"
-            result += debug_json_structure(data[0], max_level, current_level + 1, prefix)
-            if len(data) > 1:
-                result += f"{prefix}{indent}... i {len(data) - 1} więcej elementów\n"
-        else:
-            result += f"{prefix}{indent}pusta lista\n"
-    
-    return result
+# Remove debug_json_structure function as it's no longer needed
+
 
 REDIS_URL = os.getenv('REDIS_URL', 'redis://redis:6379')
 redis_client = redis.Redis.from_url(REDIS_URL)
@@ -45,7 +19,23 @@ def load_devices_data():
         for key in device_keys:
             device_data = redis_client.get(key)
             if device_data:
-                device = json.loads(device_data)
+                device_json = json.loads(device_data)
+                
+                # Extract hostname from key if needed
+                hostname_from_key = key.decode().split(':')[1]
+                
+                # Create a flattened device object
+                device = {}
+                
+                # Extract data from easynet section if available
+                if "easynet" in device_json and isinstance(device_json["easynet"], dict):
+                    easynet_data = device_json["easynet"]
+                    device.update(easynet_data)  # Add all easynet data to the device object
+                
+                # Ensure hostname exists
+                if "hostname" not in device:
+                    device["hostname"] = hostname_from_key
+                
                 devices.append(device)
         
         return devices
@@ -54,55 +44,29 @@ def load_devices_data():
         return []
 
 def load_opstatus_data():
-    """Load operational status data with new structure"""
+    """Load operational status data from the 'opstatus' section in each device"""
     try:
-        opstatus_data = redis_client.get("s3_opstatus")
-        if opstatus_data:
-            data = json.loads(opstatus_data)
-            
-            # Dodajmy więcej diagnostyki
-            print(f"Typ danych s3_opstatus: {type(data)}")
-            if isinstance(data, list):
-                print(f"Lista zawiera {len(data)} elementów")
-                if len(data) > 0:
-                    sample_item = data[0]
-                    if isinstance(sample_item, dict):
-                        print(f"Przykładowe klucze w pierwszym elemencie: {list(sample_item.keys())}")
-                        # Wykorzystaj funkcję do głębszej analizy struktury
-                        print("\nAnaliza struktury danych:")
-                        print(debug_json_structure(sample_item, max_level=4))
-            
-            # Convert list to dictionary by hostname if needed
-            if isinstance(data, list):
-                result = {}
-                skipped_count = 0
-                for i, item in enumerate(data):
-                    if isinstance(item, dict):
-                        # Sprawdź dokładnie, czy 'hostname' znajduje się w słowniku
-                        contains_hostname = False
-                        for key in item.keys():
-                            if key == 'hostname':
-                                contains_hostname = True
-                                break
-                        
-                        if contains_hostname:
-                            result[item['hostname']] = item
-                        else:
-                            # Log problematic items for debugging
-                            skipped_count += 1
-                            if skipped_count <= 3:  # Ograniczmy liczbę logów do pierwszych kilku
-                                print(f"Skipping opstatus item without hostname (keys: {list(item.keys())}): {item}")
+        opstatus_data = {}
+        device_keys = redis_client.keys("device:*")
+        
+        for key in device_keys:
+            device_data = redis_client.get(key)
+            if device_data:
+                device_json = json.loads(device_data)
                 
-                print(f"Przetworzono {len(result)} elementów, pominięto {skipped_count}")
-                return result
-            # If already a dictionary, return as is
-            elif isinstance(data, dict):
-                return data
-            else:
-                # If not list or dict, return empty dict
-                print(f"Unexpected s3_opstatus data type: {type(data)}")
-                return {}
-        return {}
+                # Get hostname from easynet or from key
+                hostname = None
+                if "easynet" in device_json and isinstance(device_json["easynet"], dict):
+                    hostname = device_json["easynet"].get("hostname")
+                
+                if not hostname:
+                    hostname = key.decode().split(':')[1]
+                
+                # Extract opstatus data if available
+                if hostname and "opstatus" in device_json:
+                    opstatus_data[hostname] = device_json["opstatus"]
+        
+        return opstatus_data
     except Exception as e:
         st.error(f"Error loading operational status data: {str(e)}")
         return {}
@@ -210,6 +174,14 @@ def display_device_details(device, opstatus_data):
             else:
                 st.warning("No operational status data available for this device.")
 
+# Ensure all columns exist before using them
+def ensure_columns_exist(df, columns):
+    df = df.copy()
+    for col in columns:
+        if col not in df.columns:
+            df[col] = 'N/A'
+    return df
+
 # Main view
 st.title('Operational Status')
 
@@ -221,6 +193,10 @@ if not devices:
     st.stop()
     
 df = pd.DataFrame(devices)
+
+# Ensure required columns exist
+required_columns = ['hostname', 'country', 'device_class', 'ip']
+df = ensure_columns_exist(df, required_columns)
 
 # Add vendor from opstatus_data
 df['vendor'] = df['hostname'].apply(lambda x: opstatus_data.get(x, {}).get('vendor', 'N/A'))
@@ -286,6 +262,11 @@ display_cols = [
     'device_class',
     'vendor'
 ] + operational_status_columns + ['Select']
+
+# Ensure all display columns exist in DataFrame
+for col in display_cols:
+    if col not in filtered_df.columns and col != 'Select':
+        filtered_df[col] = 'N/A'
 
 # Add Select column for details
 filtered_df['Select'] = False

@@ -64,7 +64,10 @@ async def get_easynet_devices():
                 with tracer.start_as_current_span("process_device"):
                     device_data = redis_client.get(key)
                     if device_data:
-                        devices.append(json.loads(device_data))
+                        device_json = json.loads(device_data)
+                        # Pobierz dane z sekcji easynet lub z całego obiektu jeśli easynet nie istnieje
+                        easynet_data = device_json.get("easynet", device_json)
+                        devices.append(easynet_data)
             
             return {"devices": devices}
         except redis.RedisError as e:
@@ -79,43 +82,41 @@ async def get_devices_backup_status():
     with tracer.start_as_current_span("get_devices_backup_status"):
         try:
             devices_keys = redis_client.keys("device:*")
-            devices = {}
+            combined_data = []
+            
             for key in devices_keys:
                 device_data = redis_client.get(key)
                 if device_data:
-                    device = json.loads(device_data)
-                    devices[device['hostname']] = device
-
-            backups = {}
-            backup_keys = redis_client.keys("s3_backups:*")
-            for key in backup_keys:
-                hostname = key.decode().split(':')[1]
-                backup_data = redis_client.hgetall(key)
-                if backup_data and b'backup_data' in backup_data:
-                    backup_info = json.loads(backup_data[b'backup_data'].decode())
-                    backups[hostname] = backup_info
-
-            combined_data = []
-            for hostname, device in devices.items():
-                backup_info = backups.get(hostname, {})
-                device_data = {**device}
-                device_data.update({
-                    'schema': backup_info.get('schema', False),
-                    'backup_json': backup_info.get('has_backup', False),
-                    'backup_json_date': backup_info.get('backup.json_s3_date'),
-                    'valid_schema': backup_info.get('valid_schema'),
-                    'backup_files': []
-                })
-                
-                if backup_info.get('backup_data'):
-                    for backup in backup_info['backup_data'].get('backup_list', []):
-                        device_data['backup_files'].append(
-                            f"[{backup['type']}] {backup['date']}: {backup['backup_file']}"
-                        )
-                
-                combined_data.append(device_data)
-
+                    device_json = json.loads(device_data)
+                    
+                    # Pobierz dane z sekcji easynet (lub całego obiektu jeśli easynet nie istnieje)
+                    easynet_data = device_json.get("easynet", {})
+                    
+                    # Pobierz dane kopii zapasowych, jeśli istnieją
+                    backup_info = device_json.get("backup_data", {})
+                    backup_json_data = backup_info.get("backup_json_data", {})
+                    
+                    # Przygotuj dane do wyświetlenia
+                    device_data = {**easynet_data}
+                    device_data.update({
+                        'schema': backup_info.get('schema', False),
+                        'backup_json': backup_json_data is not None,
+                        'backup_json_date': backup_json_data.get('backup.json_s3_date'),
+                        'valid_schema': backup_info.get('valid_schema'),
+                        'backup_files': []
+                    })
+                    
+                    # Dodaj listę plików kopii zapasowych, jeśli istnieją
+                    if backup_json_data and 'backup_list' in backup_json_data:
+                        for backup in backup_json_data['backup_list']:
+                            device_data['backup_files'].append(
+                                f"[{backup['type']}] {backup['date']}: {backup['backup_file']}"
+                            )
+                    
+                    combined_data.append(device_data)
+            
             return {"devices": combined_data}
+            
         except redis.RedisError as e:
             raise HTTPException(status_code=500, detail="Redis error")
         except json.JSONDecodeError as e:

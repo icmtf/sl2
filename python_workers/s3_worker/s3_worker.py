@@ -263,51 +263,141 @@ def get_arp_data():
             print(f"Error processing ARP data: {str(e)}")
             return False
 
-def store_s3_data_in_redis(data, redis_key_prefix):
-    """Store data in Redis with proper key prefixes"""
-    with tracer.start_as_current_span("store_s3_data_in_redis"):
+def store_unified_device_data(data_type, data):
+    """Store data in a unified structure under device:hostname keys"""
+    with tracer.start_as_current_span(f"store_unified_{data_type}_data"):
         try:
-            if redis_key_prefix == "s3_opstatus":
-                redis_client.set(redis_key_prefix, json.dumps(data))
-                print(f"Stored operational status data in Redis")
-                return
-
             pipeline = redis_client.pipeline()
             
-            existing_keys = redis_client.keys(f"{redis_key_prefix}:*")
-            if existing_keys:
-                pipeline.delete(*existing_keys)
+            # Zależnie od typu danych, przetwarzamy je w odpowiedni sposób
+            if data_type == "backup_data":
+                # Dla backup_data, mamy mapowanie hostname -> dane
+                for hostname, backup_info in data.items():
+                    # Pobierz istniejące dane urządzenia, jeśli istnieją
+                    device_key = f"device:{hostname}"
+                    device_data = redis_client.get(device_key)
+                    
+                    if device_data:
+                        # Jeśli urządzenie już istnieje, aktualizujemy je
+                        device_json = json.loads(device_data)
+                        # Dodaj dane kopii zapasowych
+                        device_json["backup_data"] = backup_info
+                        
+                        # Zapisz zaktualizowane dane
+                        pipeline.set(device_key, json.dumps(device_json))
+                    else:
+                        # Jeśli urządzenie nie istnieje, tworzymy nowy wpis
+                        new_device = {"backup_data": backup_info}
+                        pipeline.set(device_key, json.dumps(new_device))
             
-            for hostname, device_data in data.items():
-                redis_key = f"{redis_key_prefix}:{hostname}"
-                if redis_key_prefix == "s3_validation":
-                    pipeline.hset(redis_key, mapping={
-                        "vendor": device_data["vendor"],
-                        "validation_data": json.dumps(device_data["validation_data"])
-                    })
-                else:  # s3_backups
-                    pipeline.hset(redis_key, mapping={
-                        "vendor": device_data["vendor"],
-                        "backup_data": json.dumps(device_data)
-                    })
+            elif data_type == "validation":
+                # Dla validation, mamy mapowanie hostname -> dane
+                for hostname, validation_info in data.items():
+                    device_key = f"device:{hostname}"
+                    device_data = redis_client.get(device_key)
+                    
+                    if device_data:
+                        device_json = json.loads(device_data)
+                        # Dodaj dane walidacji
+                        device_json["validation"] = validation_info
+                        
+                        pipeline.set(device_key, json.dumps(device_json))
+                    else:
+                        new_device = {"validation": validation_info}
+                        pipeline.set(device_key, json.dumps(new_device))
             
+            elif data_type == "opstatus":
+                # Dla opstatus, mamy listę urządzeń
+                for status_entry in data:
+                    hostname = status_entry.get("hostname")
+                    if hostname:
+                        device_key = f"device:{hostname}"
+                        device_data = redis_client.get(device_key)
+                        
+                        if device_data:
+                            device_json = json.loads(device_data)
+                            # Dodaj dane statusu operacyjnego
+                            device_json["opstatus"] = status_entry
+                            
+                            pipeline.set(device_key, json.dumps(device_json))
+                        else:
+                            new_device = {"opstatus": status_entry}
+                            pipeline.set(device_key, json.dumps(new_device))
+            
+            # Wykonaj wszystkie operacje w jednej transakcji
             pipeline.execute()
-            print(f"Stored {redis_key_prefix} data for {len(data)} devices in Redis")
+            print(f"Stored unified {data_type} data in Redis")
+            
         except redis.RedisError as e:
-            print(f"Error storing {redis_key_prefix} data in Redis: {str(e)}")
+            print(f"Error storing unified {data_type} data in Redis: {str(e)}")
+
+def migrate_existing_data():
+    """Migruje istniejące dane z obecnej struktury do nowej struktury"""
+    with tracer.start_as_current_span("migrate_existing_data"):
+        try:
+            pipeline = redis_client.pipeline()
+            
+            # Pobierz wszystkie urządzenia
+            device_keys = redis_client.keys("device:*")
+            for device_key in device_keys:
+                hostname = device_key.decode().split(':')[1]
+                device_data = redis_client.get(device_key)
+                
+                if device_data:
+                    device_json = json.loads(device_data)
+                    
+                    # Przeorganizuj istniejące dane
+                    new_device = {"easynet": device_json.copy()}
+                    
+                    # Sprawdź czy istnieją dane kopii zapasowych
+                    backup_key = f"s3_backups:{hostname}"
+                    backup_data = redis_client.hgetall(backup_key)
+                    if backup_data and b'backup_data' in backup_data:
+                        new_device["backup_data"] = json.loads(backup_data[b'backup_data'].decode())
+                    
+                    # Sprawdź czy istnieją dane walidacji
+                    validation_key = f"s3_validation:{hostname}"
+                    validation_data = redis_client.hgetall(validation_key)
+                    if validation_data and b'validation_data' in validation_data:
+                        new_device["validation"] = {
+                            "vendor": validation_data.get(b'vendor', b'').decode(),
+                            "validation_data": json.loads(validation_data[b'validation_data'].decode())
+                        }
+                    
+                    # Sprawdź status operacyjny
+                    opstatus_data = redis_client.get("s3_opstatus")
+                    if opstatus_data:
+                        opstatus_list = json.loads(opstatus_data)
+                        for opstatus in opstatus_list:
+                            if opstatus.get("hostname") == hostname:
+                                new_device["opstatus"] = opstatus
+                                break
+                    
+                    # Zapisz nową strukturę
+                    pipeline.set(device_key, json.dumps(new_device))
+            
+            # Wykonaj wszystkie operacje
+            pipeline.execute()
+            print(f"Successfully migrated {len(device_keys)} devices to new data structure")
+            
+        except Exception as e:
+            print(f"Error migrating data: {str(e)}")
 
 def main():
     """Main function - runs continuously and updates data"""
+    # Na początku przeprowadź migrację istniejących danych
+    migrate_existing_data()
+    
     while True:
         with tracer.start_as_current_span("s3_worker_main_loop"):
             # Get and store backups data
             s3_backups = get_s3_backups_data()
-            store_s3_data_in_redis(s3_backups, "s3_backups")
+            store_unified_device_data("backup_data", s3_backups)
             
             # Get and store validation and operational status data
             s3_validation, s3_opstatus = get_s3_validation_and_opstatus_data()
-            store_s3_data_in_redis(s3_validation, "s3_validation")
-            store_s3_data_in_redis(s3_opstatus, "s3_opstatus")
+            store_unified_device_data("validation", s3_validation)
+            store_unified_device_data("opstatus", s3_opstatus)
             
             # Get remote access data
             get_remote_access_data()

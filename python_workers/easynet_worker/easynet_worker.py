@@ -89,16 +89,29 @@ def get_easynet_data():
 def store_easynet_data_in_redis(devices):
     with tracer.start_as_current_span("store_easynet_data_in_redis"):
         try:
-            # Remove all existing device:* keys from Redis
-            existing_keys = redis_client.keys("device:*")
-            if existing_keys:
-                redis_client.delete(*existing_keys)
+            pipeline = redis_client.pipeline()
             
-            # Add new data to Redis
             for device in devices:
-                redis_client.set(f"device:{device['hostname']}", json.dumps(device))
+                hostname = device['hostname']
+                device_key = f"device:{hostname}"
+                
+                # Sprawdź, czy urządzenie już istnieje
+                existing_data = redis_client.get(device_key)
+                
+                if existing_data:
+                    # Jeśli urządzenie istnieje, aktualizuj tylko część easynet
+                    device_json = json.loads(existing_data)
+                    device_json["easynet"] = device
+                    pipeline.set(device_key, json.dumps(device_json))
+                else:
+                    # Jeśli urządzenie nie istnieje, utwórz nowy wpis
+                    new_device = {"easynet": device}
+                    pipeline.set(device_key, json.dumps(new_device))
             
+            # Wykonaj wszystkie operacje
+            pipeline.execute()
             print(f"Stored {len(devices)} EasyNet devices in Redis")
+            
         except redis.RedisError as e:
             print(f"Error storing EasyNet data in Redis: {e}")
 

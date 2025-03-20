@@ -5,6 +5,14 @@ from views.validation_status.utils.redis import load_devices_data, load_complian
 from views.validation_status.utils.data import get_compliance_status, get_compliance_date, get_global_status
 from views.validation_status.utils.formatter import highlight_status
 
+# Ensure required columns exist before using them
+def ensure_columns_exist(df, columns):
+    df = df.copy()
+    for col in columns:
+        if col not in df.columns:
+            df[col] = 'N/A'
+    return df
+
 st.title("Compliance Status")
 devices = load_devices_data()
 compliance_data = load_compliance_data()
@@ -15,6 +23,10 @@ if not devices:
 else:
     # Initiating Dataframe with devices
     df = pd.DataFrame(devices)
+    
+    # Ensure all required columns exist
+    required_columns = ['hostname', 'country', 'device_class', 'vendor']
+    df = ensure_columns_exist(df, required_columns)
 
     # Processing and adding Global Status and Date column
     compliance_items = ["AAA", "SNMP", "Syslog", "NTP"]
@@ -23,10 +35,16 @@ else:
     df["Global Status"] = df.apply(get_global_status, axis=1, col_list=compliance_items)
     df["date"] = df["hostname"].apply(lambda x: get_compliance_date(x, compliance_data, "validation_data"))
 
-    # Limit the dataframe to the columns to be displayed
-    compliance_items.append("Global Status")
+    # Ensure columns in display_cols exist
     display_cols = ["hostname", "date", "country", "device_class", "vendor"] + compliance_items
-    df = df[display_cols]
+    for col in display_cols:
+        if col not in df.columns and col != 'hostname':
+            df[col] = 'N/A'
+    # Add Global Status to compliance_items for complete display
+    compliance_items.append("Global Status")
+    
+    # Limit the dataframe to the display columns
+    df = df[display_cols + ["Global Status"]]
     df.fillna("No Data", inplace=True)
 
     # Setup the filters

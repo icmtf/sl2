@@ -4,6 +4,68 @@ import json
 import pandas as pd
 import re
 
+def load_validation_data():
+    """Load validation data from the new Redis structure"""
+    try:
+        f5_data = []
+        f5_details = {}
+        device_keys = redis_client.keys('device:*')
+        
+        if not device_keys:
+            return [], {}
+        
+        for key in device_keys:
+            device_data = redis_client.get(key)
+            if device_data:
+                device_json = json.loads(device_data)
+                
+                # Get hostname from easynet or key
+                hostname = None
+                if "easynet" in device_json and isinstance(device_json["easynet"], dict):
+                    hostname = device_json["easynet"].get("hostname")
+                
+                if not hostname:
+                    hostname = key.split(':')[1]
+                
+                # Check if device has validation data and is F5
+                if "validation" in device_json:
+                    validation_data = device_json["validation"]
+                    if not validation_data.get('vendor') == 'F5':
+                        continue
+                        
+                    row_data = {
+                        'Device': hostname,
+                        'Last Check': validation_data.get('date', '')
+                    }
+                    
+                    failed_checks = {}
+                    
+                    # Process validation data
+                    validation_data_obj = validation_data.get('validation_data', {})
+                    config_validation = validation_data_obj.get('config_validation', {})
+                    
+                    for check_name, check_data in config_validation.items():
+                        if isinstance(check_data, dict):
+                            status = check_data.get('status')
+                            if status:
+                                row_data[check_name] = status
+                                if status == 'KO':
+                                    if check_name == 'snmp':
+                                        # Special handling for SNMP
+                                        message = "Community: " + check_data.get('message_community', '').strip('"')
+                                        message += "\nSysinfo: " + check_data.get('message_sysinfo', '').strip('"')
+                                        failed_checks[check_name] = message
+                                    else:
+                                        failed_checks[check_name] = check_data.get('message', '')
+                    
+                    row_data['Details'] = False
+                    f5_data.append(row_data)
+                    f5_details[hostname] = failed_checks
+        
+        return f5_data, f5_details
+    except Exception as e:
+        st.error(f"Error loading validation data: {str(e)}")
+        return [], {}
 def format_validation_message(message):
     """Display message as a code block"""
     try:
@@ -25,47 +87,8 @@ try:
         decode_responses=True
     )
     
-    validation_keys = redis_client.keys('s3_validation:*')
-    
-    if not validation_keys:
-        st.warning("No validation data found in Redis")
-        st.stop()
-        
-    f5_data = []
-    f5_details = {}
-    
-    for key in validation_keys:
-        data = redis_client.hgetall(key)
-        if data.get('vendor') == 'F5':
-            validation_data = json.loads(data.get('validation_data', '{}'))
-            device_id = key.split(':')[1]
-            
-            row_data = {
-                'Device': device_id,
-                'Last Check': validation_data.get('date', '')
-            }
-            
-            failed_checks = {}
-            
-            # Processing new data structure
-            config_validation = validation_data.get('config_validation', {})
-            for check_name, check_data in config_validation.items():
-                if isinstance(check_data, dict):
-                    status = check_data.get('status')
-                    if status:
-                        row_data[check_name] = status
-                        if status == 'KO':
-                            if check_name == 'snmp':
-                                # Special handling for SNMP
-                                message = "Community: " + check_data.get('message_community', '').strip('"')
-                                message += "\nSysinfo: " + check_data.get('message_sysinfo', '').strip('"')
-                                failed_checks[check_name] = message
-                            else:
-                                failed_checks[check_name] = check_data.get('message', '')
-            
-            row_data['Details'] = False
-            f5_data.append(row_data)
-            f5_details[device_id] = failed_checks
+    # Use the new load_validation_data function instead of direct Redis access
+    f5_data, f5_details = load_validation_data()
     
     if not f5_data:
         st.warning("No F5 devices found in validation data")

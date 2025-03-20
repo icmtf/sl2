@@ -14,7 +14,23 @@ def load_devices_data():
         for key in device_keys:
             device_data = redis_client.get(key)
             if device_data:
-                device = json.loads(device_data)
+                device_json = json.loads(device_data)
+                
+                # Extract hostname from key if needed
+                hostname_from_key = key.decode().split(':')[1]
+                
+                # Create a flattened device object
+                device = {}
+                
+                # Extract data from easynet section if available
+                if "easynet" in device_json and isinstance(device_json["easynet"], dict):
+                    easynet_data = device_json["easynet"]
+                    device.update(easynet_data)  # Add all easynet data to the device object
+                
+                # Ensure hostname exists
+                if "hostname" not in device:
+                    device["hostname"] = hostname_from_key
+                
                 devices.append(device)
 
         return devices
@@ -35,17 +51,24 @@ def load_backup_data():
 def load_compliance_data():
     try:
         compliance_data = {}
-        validation_keys = redis_client.keys("s3_validation:*")
+        device_keys = redis_client.keys("device:*")
         
-        for key in validation_keys:
-            hostname = key.decode().split(':')[1]
-            data = redis_client.hgetall(key)
-            if data and b'validation_data' in data:
-                validation_data = json.loads(data[b'validation_data'].decode())
-                compliance_data[hostname] = {
-                    'validation_data': validation_data,
-                    'vendor': data[b'vendor'].decode() if b'vendor' in data else 'Unknown'
-                }
+        for key in device_keys:
+            device_data = redis_client.get(key)
+            if device_data:
+                device_json = json.loads(device_data)
+                
+                # Get hostname from easynet or key
+                hostname = None
+                if "easynet" in device_json and isinstance(device_json["easynet"], dict):
+                    hostname = device_json["easynet"].get("hostname")
+                
+                if not hostname:
+                    hostname = key.decode().split(':')[1]
+                
+                # Extract validation data if available
+                if hostname and "validation" in device_json:
+                    compliance_data[hostname] = device_json["validation"]
         
         return compliance_data
     except Exception as e:
