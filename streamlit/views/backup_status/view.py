@@ -16,29 +16,49 @@ def load_devices_data():
         devices = []
         device_keys = redis_client.keys("device:*")
         
-        
         for key in device_keys:
             device_data = redis_client.get(key)
             if device_data:
                 try:
                     device_json = json.loads(device_data)
-                    # Get data from the easynet section
+                    
+                    # Pobierz hostname z klucza
+                    hostname_from_key = key.decode().split(':')[1]
+                    
+                    # Spróbuj pobrać dane easynet
                     easynet_data = device_json.get("easynet", {})
                     
-                    # If hostname is missing in easynet, try to get it from the main object
-                    if not easynet_data.get('hostname') and device_json.get('hostname'):
-                        easynet_data['hostname'] = device_json.get('hostname')
+                    # Jeśli easynet zawiera dane, użyj ich
+                    if easynet_data:
+                        device_info = easynet_data.copy()
+                        # Upewnij się, że mamy hostname
+                        if not device_info.get('hostname'):
+                            device_info['hostname'] = hostname_from_key
+                            
+                        # NIE zmieniamy nazwy pola ip, używamy oryginalnej nazwy z małych liter
+                    else:
+                        # Jeśli easynet jest pusty, utwórz podstawowy obiekt i pobierz dane z innych sekcji
+                        device_info = {'hostname': hostname_from_key}
                         
-                    # If there's still no hostname, use the part of the key after the colon
-                    if not easynet_data.get('hostname'):
-                        hostname_from_key = key.decode().split(':')[1]
-                        easynet_data['hostname'] = hostname_from_key
+                        # Pobierz vendor z backup_data, validation lub opstatus
+                        if 'backup_data' in device_json and device_json['backup_data'].get('vendor'):
+                            device_info['vendor'] = device_json['backup_data'].get('vendor')
+                        elif 'validation' in device_json and device_json['validation'].get('vendor'):
+                            device_info['vendor'] = device_json['validation'].get('vendor')
+                        elif 'opstatus' in device_json and device_json['opstatus'].get('vendor'):
+                            device_info['vendor'] = device_json['opstatus'].get('vendor')
                         
-                    # Add reference to backup_data
+                        # Pobierz device_class z backup_data lub validation
+                        if 'backup_data' in device_json and device_json['backup_data'].get('device_class'):
+                            device_info['device_class'] = device_json['backup_data'].get('device_class')
+                        elif 'validation' in device_json and device_json['validation'].get('device_class'):
+                            device_info['device_class'] = device_json['validation'].get('device_class')
+                    
+                    # Dodaj referencję do backup_data
                     if "backup_data" in device_json:
-                        easynet_data["_backup_data_ref"] = device_json["backup_data"]
+                        device_info["_backup_data_ref"] = device_json["backup_data"]
                         
-                    devices.append(easynet_data)
+                    devices.append(device_info)
                 except json.JSONDecodeError as e:
                     pass
         
@@ -60,27 +80,17 @@ def load_backup_data():
                 try:
                     device_json = json.loads(device_data)
                     
-                    # Try to get hostname
-                    hostname = None
+                    # Pobierz hostname bezpośrednio z klucza
+                    hostname = key.decode().split(':')[1]
                     
-                    # First try from easynet
-                    if "easynet" in device_json and isinstance(device_json["easynet"], dict):
-                        hostname = device_json["easynet"].get("hostname")
-                    
-                    # If not found, try from the main object
-                    if not hostname and "hostname" in device_json:
-                        hostname = device_json["hostname"]
-                        
-                    # If still not found, use the part of the key after the colon
-                    if not hostname:
-                        hostname = key.decode().split(':')[1]
-                    
-                    # If we have hostname and backup data
+                    # Jeśli mamy hostname i backup_data, dodaj do słownika
                     if hostname and "backup_data" in device_json:
                         backups[hostname] = device_json["backup_data"]
                         backup_count += 1
                 except Exception as e:
                     pass
+        
+        print(f"Loaded {backup_count} backup data entries")
         return backups
     except Exception as e:
         st.error(f"Error loading backup data: {str(e)}")
@@ -93,11 +103,29 @@ def display_device_details(device, backups):
         st.error("No hostname found for device")
         return
 
-    with st.expander(f"🔍 {hostname} ({device.get('ip', 'N/A')})", expanded=False):
+    with st.expander(f"🔍 {hostname}", expanded=False):
         st.write("##### Device Details")
         st.write(f"**Hostname:** {hostname}")
+        
+        # Pokazuj pole IP
         st.write(f"**IP Address:** {device.get('ip', 'N/A')}")
-        st.write(f"**Country:** {device.get('Country', 'N/A')}")
+        
+        # Pokazuj pole Country w jednej z możliwych wersji nazwy
+        if 'Country' in device:
+            st.write(f"**Country:** {device['Country']}")
+        elif 'country' in device:
+            st.write(f"**Country:** {device['country']}")
+        else:
+            st.write(f"**Country:** N/A")
+        
+        # Wyświetl wszystkie istotne informacje, jeśli są dostępne
+        for field, label in [
+            ('vendor', 'Vendor'), 
+            ('device_class', 'Device Class'),
+            ('device_type', 'Device Type')
+        ]:
+            if field in device and device[field]:
+                st.write(f"**{label}:** {device[field]}")
         
         if hostname in backups:
             backup_data = backups[hostname].get("backup_json_data", {})
@@ -110,17 +138,14 @@ def clean_df_values(df, columns):
     """Replace None/NaN values with 'Unknown' in specified columns"""
     df = df.copy()
     for col in columns:
-        # Check if column exists with exact name
+        # Upewnij się, że kolumna istnieje
         if col in df.columns:
+            # Zamień NaN, None, puste stringi na 'Unknown'
+            df[col] = df[col].apply(lambda x: 'Unknown' if x is None or (isinstance(x, str) and x.strip() == '') else x)
             df[col] = df[col].fillna('Unknown')
         else:
-            # Check capitalized variant
-            col_capitalized = col.capitalize()
-            if col_capitalized in df.columns:
-                df[col_capitalized] = df[col_capitalized].fillna('Unknown')
-            else:
-                # If column doesn't exist, create it with default value
-                df[col] = 'Unknown'
+            # Jeśli kolumna nie istnieje, utwórz ją z domyślną wartością
+            df[col] = 'Unknown'
     return df
 
 st.title('Backup Status')
@@ -139,7 +164,6 @@ for device in devices:
     # Make sure each device has a 'hostname' field
     if not device.get('hostname'):
         # If hostname is missing, skip this device
-        pass
         continue
     devices_list.append(device)
 
@@ -154,18 +178,43 @@ df['Backup Status'] = df['hostname'].apply(
     lambda x: format_backup_status_value(x, backups) if x else 'Unknown'
 )
 
-# Clean values first using original column names
-original_cols = ["country", "vendor", "device_class", "Backup Status"]
-df = clean_df_values(df, original_cols)
+# Upewnij się, że kolumny vendor i device_class istnieją
+if 'vendor' not in df.columns:
+    df['vendor'] = 'Unknown'
+else:
+    df['vendor'] = df['vendor'].fillna('Unknown')
 
-# Then rename columns
+if 'device_class' not in df.columns:
+    df['device_class'] = 'Unknown'
+else:
+    df['device_class'] = df['device_class'].fillna('Unknown')
+
+# Przekształć nazwę country na wielką literę "Country"
+if 'country' in df.columns:
+    df['Country'] = df['country'].fillna('N/A')  # Zastąp None przez 'N/A'
+else:
+    df['Country'] = 'N/A'
+
+# Przekształć nazwę IP jeśli istnieje, inaczej użyj ip
+if 'ip' in df.columns:
+    df['ip'] = df['ip'].fillna('N/A')  # Zastąp None przez 'N/A'
+elif 'IP' in df.columns:
+    df['ip'] = df['IP'].fillna('N/A')  # Skopiuj dane z 'IP' do 'ip'
+    df = df.drop(columns=['IP'])  # Usuń kolumnę 'IP' aby uniknąć duplikacji
+else:
+    df['ip'] = 'N/A'
+
+# Zmień nazwy kolumn
 df = df.rename(columns={
     'device_class': 'Device Class',
-    'country': 'Country',
     'vendor': 'Vendor'
 })
 
+# Upewnij się, że kolumny używane do filtrowania nie zawierają wartości None
 filtering_cols = ["Country", "Vendor", "Device Class", "Backup Status"]
+for col in filtering_cols:
+    if col in df.columns:
+        df[col] = df[col].fillna('Unknown')  # Zastąp None przez 'Unknown'
 
 # Setup filters
 st.sidebar.header("Filters")
@@ -200,7 +249,10 @@ display_cols = [
 # Ensure all required columns exist in DataFrame
 for col in display_cols:
     if col not in filtered_df.columns and col != 'Select':
-        filtered_df[col] = 'N/A'
+        if col == 'ip' and 'IP' in filtered_df.columns:
+            filtered_df['ip'] = filtered_df['IP']  # Przekopiuj dane z IP do ip jeśli potrzeba
+        else:
+            filtered_df[col] = 'N/A'
 
 # Add Select column for details
 filtered_df['Select'] = False

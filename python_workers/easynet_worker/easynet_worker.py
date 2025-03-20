@@ -100,9 +100,21 @@ def store_easynet_data_in_redis(devices):
                 
                 if existing_data:
                     # If the device exists, update only the easynet part
-                    device_json = json.loads(existing_data)
-                    device_json["easynet"] = device
-                    pipeline.set(device_key, json.dumps(device_json))
+                    try:
+                        device_json = json.loads(existing_data)
+                        
+                        # Ensure we're dealing with a dictionary
+                        if not isinstance(device_json, dict):
+                            device_json = {}
+                            
+                        # Clear any existing easynet section to prevent nested structures
+                        device_json["easynet"] = device
+                        
+                        pipeline.set(device_key, json.dumps(device_json))
+                    except json.JSONDecodeError:
+                        # If existing data is corrupted, create a new entry
+                        new_device = {"easynet": device}
+                        pipeline.set(device_key, json.dumps(new_device))
                 else:
                     # If the device doesn't exist, create a new entry
                     new_device = {"easynet": device}

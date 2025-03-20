@@ -276,13 +276,23 @@ def store_unified_device_data(data_type, data):
                     device_data = redis_client.get(device_key)
                     
                     if device_data:
-                        # If the device already exists, we update it
-                        device_json = json.loads(device_data)
-                        # Add backup data
-                        device_json["backup_data"] = backup_info
-                        
-                        # Save updated data
-                        pipeline.set(device_key, json.dumps(device_json))
+                        try:
+                            # Parse existing data
+                            device_json = json.loads(device_data)
+                            
+                            # Ensure we're dealing with a dictionary
+                            if not isinstance(device_json, dict):
+                                device_json = {}
+                                
+                            # Add backup data without touching other sections
+                            device_json["backup_data"] = backup_info
+                            
+                            # Save updated data
+                            pipeline.set(device_key, json.dumps(device_json))
+                        except json.JSONDecodeError:
+                            # If existing data is corrupt, create a new structure
+                            new_device = {"backup_data": backup_info}
+                            pipeline.set(device_key, json.dumps(new_device))
                     else:
                         # If the device doesn't exist, create a new entry
                         new_device = {"backup_data": backup_info}
@@ -295,11 +305,23 @@ def store_unified_device_data(data_type, data):
                     device_data = redis_client.get(device_key)
                     
                     if device_data:
-                        device_json = json.loads(device_data)
-                        # Add validation data
-                        device_json["validation"] = validation_info
-                        
-                        pipeline.set(device_key, json.dumps(device_json))
+                        try:
+                            # Parse existing data
+                            device_json = json.loads(device_data)
+                            
+                            # Ensure we're dealing with a dictionary
+                            if not isinstance(device_json, dict):
+                                device_json = {}
+                                
+                            # Add validation data without nested structures
+                            device_json["validation"] = validation_info
+                            
+                            # Save updated data
+                            pipeline.set(device_key, json.dumps(device_json))
+                        except json.JSONDecodeError:
+                            # If existing data is corrupt, create a new structure
+                            new_device = {"validation": validation_info}
+                            pipeline.set(device_key, json.dumps(new_device))
                     else:
                         new_device = {"validation": validation_info}
                         pipeline.set(device_key, json.dumps(new_device))
@@ -313,11 +335,23 @@ def store_unified_device_data(data_type, data):
                         device_data = redis_client.get(device_key)
                         
                         if device_data:
-                            device_json = json.loads(device_data)
-                            # Add operational status data
-                            device_json["opstatus"] = status_entry
-                            
-                            pipeline.set(device_key, json.dumps(device_json))
+                            try:
+                                # Parse existing data
+                                device_json = json.loads(device_data)
+                                
+                                # Ensure we're dealing with a dictionary
+                                if not isinstance(device_json, dict):
+                                    device_json = {}
+                                    
+                                # Add operational status data
+                                device_json["opstatus"] = status_entry
+                                
+                                # Save updated data
+                                pipeline.set(device_key, json.dumps(device_json))
+                            except json.JSONDecodeError:
+                                # If existing data is corrupt, create a new structure
+                                new_device = {"opstatus": status_entry}
+                                pipeline.set(device_key, json.dumps(new_device))
                         else:
                             new_device = {"opstatus": status_entry}
                             pipeline.set(device_key, json.dumps(new_device))
@@ -329,62 +363,71 @@ def store_unified_device_data(data_type, data):
         except redis.RedisError as e:
             print(f"Error storing unified {data_type} data in Redis: {str(e)}")
 
-def migrate_existing_data():
-    """Migrates existing data from the current structure to the new structure"""
-    with tracer.start_as_current_span("migrate_existing_data"):
+def repair_existing_data_structure():
+    """Fix existing data structure in Redis to match the expected format"""
+    with tracer.start_as_current_span("repair_existing_data_structure"):
         try:
-            pipeline = redis_client.pipeline()
-            
-            # Get all devices
+            # Get all device keys
             device_keys = redis_client.keys("device:*")
-            for device_key in device_keys:
-                hostname = device_key.decode().split(':')[1]
-                device_data = redis_client.get(device_key)
-                
+            fixed_count = 0
+            
+            for key in device_keys:
+                device_data = redis_client.get(key)
                 if device_data:
-                    device_json = json.loads(device_data)
-                    
-                    # Reorganize existing data
-                    new_device = {"easynet": device_json.copy()}
-                    
-                    # Check if backup data exists
-                    backup_key = f"s3_backups:{hostname}"
-                    backup_data = redis_client.hgetall(backup_key)
-                    if backup_data and b'backup_data' in backup_data:
-                        new_device["backup_data"] = json.loads(backup_data[b'backup_data'].decode())
-                    
-                    # Check if validation data exists
-                    validation_key = f"s3_validation:{hostname}"
-                    validation_data = redis_client.hgetall(validation_key)
-                    if validation_data and b'validation_data' in validation_data:
-                        new_device["validation"] = {
-                            "vendor": validation_data.get(b'vendor', b'').decode(),
-                            "validation_data": json.loads(validation_data[b'validation_data'].decode())
-                        }
-                    
-                    # Check operational status
-                    opstatus_data = redis_client.get("s3_opstatus")
-                    if opstatus_data:
-                        opstatus_list = json.loads(opstatus_data)
-                        for opstatus in opstatus_list:
-                            if opstatus.get("hostname") == hostname:
-                                new_device["opstatus"] = opstatus
-                                break
-                    
-                    # Save new structure
-                    pipeline.set(device_key, json.dumps(new_device))
+                    try:
+                        device_json = json.loads(device_data)
+                        
+                        # Check if we need to repair the data structure
+                        needs_repair = False
+                        
+                        # Case 1: easynet contains a nested easynet structure
+                        if "easynet" in device_json and isinstance(device_json["easynet"], dict):
+                            if "easynet" in device_json["easynet"]:
+                                needs_repair = True
+                                
+                                # Try to extract useful data from the nested structure
+                                nested_easynet = device_json["easynet"].get("easynet", {})
+                                
+                                # If nested_easynet contains validation data, move it to the validation section
+                                if "validation" in nested_easynet and isinstance(nested_easynet["validation"], dict):
+                                    # Preserve existing validation data if it exists
+                                    if "validation" not in device_json:
+                                        device_json["validation"] = nested_easynet["validation"]
+                                
+                                # Clear the corrupted easynet section
+                                # We'll need to wait for EasyNet Worker to fill it with proper data
+                                device_json["easynet"] = {}
+                        
+                        # Case 2: ValidationData is inside easynet but should be in validation
+                        if "easynet" in device_json and isinstance(device_json["easynet"], dict):
+                            if "validation" in device_json["easynet"] and isinstance(device_json["easynet"]["validation"], dict):
+                                needs_repair = True
+                                
+                                # Move validation data to the correct section
+                                if "validation" not in device_json:
+                                    device_json["validation"] = device_json["easynet"]["validation"]
+                                
+                                # Remove validation data from easynet section
+                                del device_json["easynet"]["validation"]
+                        
+                        # Save the fixed data if repairs were made
+                        if needs_repair:
+                            redis_client.set(key, json.dumps(device_json))
+                            fixed_count += 1
+                            
+                    except json.JSONDecodeError:
+                        # If data is corrupted, we can't repair it
+                        pass
             
-            # Execute all operations
-            pipeline.execute()
-            print(f"Successfully migrated {len(device_keys)} devices to new data structure")
+            print(f"Repaired {fixed_count} out of {len(device_keys)} device records in Redis")
             
-        except Exception as e:
-            print(f"Error migrating data: {str(e)}")
+        except redis.RedisError as e:
+            print(f"Error repairing data structure in Redis: {str(e)}")
 
 def main():
     """Main function - runs continuously and updates data"""
-    # At the beginning, perform migration of existing data
-    migrate_existing_data()
+    # At the beginning, repair any corrupted data structure
+    repair_existing_data_structure()
     
     while True:
         with tracer.start_as_current_span("s3_worker_main_loop"):
