@@ -1,5 +1,3 @@
-
-
 import streamlit as st
 import pandas as pd
 import redis
@@ -24,19 +22,19 @@ def load_devices_data():
             if device_data:
                 try:
                     device_json = json.loads(device_data)
-                    # Pobierz dane z sekcji easynet
+                    # Get data from the easynet section
                     easynet_data = device_json.get("easynet", {})
                     
-                    # Jeżeli nie ma hostname w easynet, spróbuj pobrać z głównego obiektu
+                    # If hostname is missing in easynet, try to get it from the main object
                     if not easynet_data.get('hostname') and device_json.get('hostname'):
                         easynet_data['hostname'] = device_json.get('hostname')
                         
-                    # Jeżeli nadal nie ma hostname, użyj części klucza po dwukropku
+                    # If there's still no hostname, use the part of the key after the colon
                     if not easynet_data.get('hostname'):
                         hostname_from_key = key.decode().split(':')[1]
                         easynet_data['hostname'] = hostname_from_key
                         
-                    # Dodaj referencję do backup_data
+                    # Add reference to backup_data
                     if "backup_data" in device_json:
                         easynet_data["_backup_data_ref"] = device_json["backup_data"]
                         
@@ -62,22 +60,22 @@ def load_backup_data():
                 try:
                     device_json = json.loads(device_data)
                     
-                    # Spróbuj pobrać hostname
+                    # Try to get hostname
                     hostname = None
                     
-                    # Najpierw spróbuj z easynet
+                    # First try from easynet
                     if "easynet" in device_json and isinstance(device_json["easynet"], dict):
                         hostname = device_json["easynet"].get("hostname")
                     
-                    # Jeśli nie ma, spróbuj z głównego obiektu
+                    # If not found, try from the main object
                     if not hostname and "hostname" in device_json:
                         hostname = device_json["hostname"]
                         
-                    # Jeśli nadal nie ma, użyj części klucza po dwukropku
+                    # If still not found, use the part of the key after the colon
                     if not hostname:
                         hostname = key.decode().split(':')[1]
                     
-                    # Jeśli mamy hostname i dane backupów
+                    # If we have hostname and backup data
                     if hostname and "backup_data" in device_json:
                         backups[hostname] = device_json["backup_data"]
                         backup_count += 1
@@ -138,9 +136,9 @@ if not devices:
 # Create DataFrame
 devices_list = []
 for device in devices:
-    # Upewnij się, że każde urządzenie ma pole 'hostname'
+    # Make sure each device has a 'hostname' field
     if not device.get('hostname'):
-        # Jeśli brak hostname, pomijamy to urządzenie
+        # If hostname is missing, skip this device
         pass
         continue
     devices_list.append(device)

@@ -17,15 +17,15 @@ def get_compliance_status(hostname, compliance_data, compliance_type, item):
         device_data = compliance_data.get(hostname, {})
         data = device_data.get(compliance_type, {})
         
-        # Przekształć item na małe litery
+        # Transform item to lowercase
         item_lower = item.lower()
         
-        # Wyszukaj klucz niezależnie od wielkości liter
+        # Search for key case-insensitively
         for key in data[data_field]:
             if key.lower() == item_lower:
                 return data[data_field][key]['status']
         
-        # Jeśli nie znaleziono dopasowania
+        # If no match found
         return 'N/A'
     except Exception:
         return 'N/A'

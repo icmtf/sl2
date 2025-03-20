@@ -49,7 +49,7 @@ def backup_status_bar_chart_value(hostname: str, backups: dict) -> int:
                 backup_date = datetime.fromisoformat(backup['date'])
                 current_time = datetime.now(timezone.utc)
                 age_seconds = (current_time - backup_date).total_seconds()
-                max_age = backup.get('max_age', 1)  # Domyślnie 1 sekunda (będzie generować błędy)
+                max_age = backup.get('max_age', 1)  # Default 1 second (will generate errors)
                 age_status = int(age_seconds // max_age)
                 worst_age_status = max(worst_age_status, age_status)
             except (ValueError, TypeError):
@@ -68,7 +68,7 @@ def create_backup_status_bar_chart(df, backups):
         # Check if required columns exist
         if 'hostname' not in df.columns or 'Vendor' not in df.columns:
             import streamlit as st
-            st.sidebar.error("Brak wymaganych kolumn w DataFrame")
+            st.sidebar.error("Missing required columns in DataFrame")
             # Create empty DataFrame with expected structure
             return px.bar(
                 pd.DataFrame({'Vendor': ['Unknown'], 'Count': [1], 'Status_Label': ['❌ No Data']}),
@@ -94,7 +94,7 @@ def create_backup_status_bar_chart(df, backups):
         
         if not data:
             import streamlit as st
-            st.sidebar.warning("Brak danych do wykresu słupkowego")
+            st.sidebar.warning("No data for bar chart")
             # Create empty DataFrame with expected structure
             return px.bar(
                 pd.DataFrame({'Vendor': ['Unknown'], 'Count': [1], 'Status_Label': ['❌ No Data']}),
@@ -184,7 +184,7 @@ def create_backup_status_bar_chart(df, backups):
         return fig
     except Exception as e:
         import streamlit as st
-        st.sidebar.error(f"Błąd podczas tworzenia wykresu słupkowego: {str(e)}")
+        st.sidebar.error(f"Error while creating bar chart: {str(e)}")
         # Return empty chart
         return px.bar(
             pd.DataFrame({'Vendor': ['Unknown'], 'Count': [1], 'Status_Label': ['❌ Error']}),

@@ -1,1 +1,1 @@
-# Inicjalizacja pakietu validation_status
+# Validation_status package initialization

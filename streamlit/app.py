@@ -34,11 +34,6 @@ logout_page = st.Page(logout, title="Log out", icon=":material/logout:", url_pat
 from views.home.view import main as home_main
 home_page = st.Page(home_main, title="Home", icon=":material/home:", default=True, url_path="home")
 
-# Testing pages
-from views.testing.view import show as global_overview_show
-global_overview = st.Page(global_overview_show, title="Global Overview", icon=":material/dashboard:", url_path="global_overview")
-device_details = st.Page("views/testing/device_details.py", title="Device Details", icon=":material/devices:", url_path="devices")
-
 # Compliance Status pages
 backup_status = st.Page("views/backup_status/view.py", title="Backup Status", icon=":material/backup:", url_path="backup_status")
 operational_status = st.Page("views/operational_status/view.py", title="Operational Status", icon=":material/check_circle:", url_path="operational_status")
@@ -73,7 +68,6 @@ if st.session_state.logged_in:
                 vpn_session,
                 mac_table_page
             ],
-            "Testing": [global_overview, device_details],
         }
     )
 else:

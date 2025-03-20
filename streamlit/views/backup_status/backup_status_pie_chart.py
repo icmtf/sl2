@@ -49,7 +49,7 @@ def backup_status_pie_chart_value(hostname: str, backups: dict) -> int:
                 backup_date = datetime.fromisoformat(backup['date'])
                 current_time = datetime.now(timezone.utc)
                 age_seconds = (current_time - backup_date).total_seconds()
-                max_age = backup.get('max_age', 1)  # Domyślnie 1 sekunda (będzie generować błędy)
+                max_age = backup.get('max_age', 1)  # Default 1 second (will generate errors)
                 age_status = int(age_seconds // max_age)
                 worst_age_status = max(worst_age_status, age_status)
             except (ValueError, TypeError):
@@ -68,7 +68,7 @@ def create_backup_status_pie_chart(df, backups):
         # Make sure hostname column exists
         if 'hostname' not in df.columns:
             import streamlit as st
-            st.sidebar.error("Brak kolumny 'hostname' w DataFrame")
+            st.sidebar.error("Missing 'hostname' column in DataFrame")
             # Create empty DataFrame with expected structure
             return px.pie(
                 pd.DataFrame({'Status': ['❌ No Data'], 'Count': [1]}),
@@ -110,7 +110,7 @@ def create_backup_status_pie_chart(df, backups):
         return fig
     except Exception as e:
         import streamlit as st
-        st.sidebar.error(f"Błąd podczas tworzenia wykresu kołowego: {str(e)}")
+        st.sidebar.error(f"Error while creating pie chart: {str(e)}")
         # Return empty chart
         return px.pie(
             pd.DataFrame({'Status': ['❌ Error'], 'Count': [1]}),

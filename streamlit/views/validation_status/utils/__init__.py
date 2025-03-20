@@ -1,1 +1,1 @@
-# Inicjalizacja pakietu utils
+# Utils package initialization

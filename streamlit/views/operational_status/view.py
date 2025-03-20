@@ -76,28 +76,28 @@ def get_operational_status(hostname, opstatus_data, status_key):
     try:
         device_data = opstatus_data.get(hostname, {})
         
-        # Sprawdź strukturę danych - może być bezpośrednio w device_data lub w 'operational_status'
+        # Check data structure - may be directly in device_data or in 'operational_status'
         if 'operational_status' in device_data:
-            # Struktura: {'hostname': {'operational_status': {...}, ...}}
+            # Structure: {'hostname': {'operational_status': {...}, ...}}
             operational_data = device_data.get('operational_status', {})
         else:
-            # Struktura: {'hostname': {'SSH_port': {...}, 'HTTPS_port': {...}, ...}}
+            # Structure: {'hostname': {'SSH_port': {...}, 'HTTPS_port': {...}, ...}}
             operational_data = device_data
         
-        # Pobierz informacje o statusie
+        # Get status information
         if status_key in operational_data:
             status_info = operational_data.get(status_key, {})
             
-            # Sprawdź format danych statusu
+            # Check status data format
             if isinstance(status_info, dict):
                 status = status_info.get('status', 'N/A')
                 message = status_info.get('message', '')
             else:
-                # Status może być bezpośrednią wartością
+                # Status may be a direct value
                 status = status_info
                 message = ''
                 
-            # Oczyść wiadomość
+            # Clean the message
             if isinstance(message, str):
                 message = message.strip('"')
                 if message in ['No message found', '', 'NA']:
@@ -138,14 +138,14 @@ def display_device_details(device, opstatus_data):
         with col2:
             st.write("##### Operational Status Details")
             
-            # Ustal, gdzie są dane operational_status
+            # Determine where the operational_status data is located
             operational_status = None
             if 'operational_status' in device_opstatus:
                 operational_status = device_opstatus['operational_status']
                 last_update = device_opstatus.get('date', 'N/A')
                 st.write(f"**Last Updated:** {last_update}")
             else:
-                # Sprawdź, czy dane są bezpośrednio w device_opstatus
+                # Check if data is directly in device_opstatus
                 operational_keys = ['SSH_port', 'HTTPS_port', 'SNMP', 'remote_auth', 'syslog']
                 if any(key in device_opstatus for key in operational_keys):
                     operational_status = device_opstatus
@@ -157,7 +157,7 @@ def display_device_details(device, opstatus_data):
                     if key in operational_status:
                         status_info = operational_status[key]
                         
-                        # Obsługa różnych formatów danych
+                        # Handle different data formats
                         if isinstance(status_info, dict):
                             status = status_info.get('status', 'N/A')
                             message = status_info.get('message', '')

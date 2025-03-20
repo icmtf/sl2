@@ -1,6 +1,5 @@
 import os
 import time
-import math
 import redis
 import json
 import boto3
@@ -16,7 +15,6 @@ from opentelemetry.sdk.trace.export import BatchSpanProcessor
 from opentelemetry.sdk.resources import Resource
 from opentelemetry.instrumentation.botocore import BotocoreInstrumentor
 from jsonschema import validate, ValidationError
-from datetime import datetime, timezone
 import re
 
 from pyinet.common.config_loader import ConfigLoader
@@ -269,36 +267,36 @@ def store_unified_device_data(data_type, data):
         try:
             pipeline = redis_client.pipeline()
             
-            # Zależnie od typu danych, przetwarzamy je w odpowiedni sposób
+            # Depending on the data type, we process it in the appropriate way
             if data_type == "backup_data":
-                # Dla backup_data, mamy mapowanie hostname -> dane
+                # For backup_data, we have a mapping hostname -> data
                 for hostname, backup_info in data.items():
-                    # Pobierz istniejące dane urządzenia, jeśli istnieją
+                    # Get existing device data, if it exists
                     device_key = f"device:{hostname}"
                     device_data = redis_client.get(device_key)
                     
                     if device_data:
-                        # Jeśli urządzenie już istnieje, aktualizujemy je
+                        # If the device already exists, we update it
                         device_json = json.loads(device_data)
-                        # Dodaj dane kopii zapasowych
+                        # Add backup data
                         device_json["backup_data"] = backup_info
                         
-                        # Zapisz zaktualizowane dane
+                        # Save updated data
                         pipeline.set(device_key, json.dumps(device_json))
                     else:
-                        # Jeśli urządzenie nie istnieje, tworzymy nowy wpis
+                        # If the device doesn't exist, create a new entry
                         new_device = {"backup_data": backup_info}
                         pipeline.set(device_key, json.dumps(new_device))
             
             elif data_type == "validation":
-                # Dla validation, mamy mapowanie hostname -> dane
+                # For validation, we have a mapping hostname -> data
                 for hostname, validation_info in data.items():
                     device_key = f"device:{hostname}"
                     device_data = redis_client.get(device_key)
                     
                     if device_data:
                         device_json = json.loads(device_data)
-                        # Dodaj dane walidacji
+                        # Add validation data
                         device_json["validation"] = validation_info
                         
                         pipeline.set(device_key, json.dumps(device_json))
@@ -307,7 +305,7 @@ def store_unified_device_data(data_type, data):
                         pipeline.set(device_key, json.dumps(new_device))
             
             elif data_type == "opstatus":
-                # Dla opstatus, mamy listę urządzeń
+                # For opstatus, we have a list of devices
                 for status_entry in data:
                     hostname = status_entry.get("hostname")
                     if hostname:
@@ -316,7 +314,7 @@ def store_unified_device_data(data_type, data):
                         
                         if device_data:
                             device_json = json.loads(device_data)
-                            # Dodaj dane statusu operacyjnego
+                            # Add operational status data
                             device_json["opstatus"] = status_entry
                             
                             pipeline.set(device_key, json.dumps(device_json))
@@ -324,7 +322,7 @@ def store_unified_device_data(data_type, data):
                             new_device = {"opstatus": status_entry}
                             pipeline.set(device_key, json.dumps(new_device))
             
-            # Wykonaj wszystkie operacje w jednej transakcji
+            # Execute all operations in a single transaction
             pipeline.execute()
             print(f"Stored unified {data_type} data in Redis")
             
@@ -332,12 +330,12 @@ def store_unified_device_data(data_type, data):
             print(f"Error storing unified {data_type} data in Redis: {str(e)}")
 
 def migrate_existing_data():
-    """Migruje istniejące dane z obecnej struktury do nowej struktury"""
+    """Migrates existing data from the current structure to the new structure"""
     with tracer.start_as_current_span("migrate_existing_data"):
         try:
             pipeline = redis_client.pipeline()
             
-            # Pobierz wszystkie urządzenia
+            # Get all devices
             device_keys = redis_client.keys("device:*")
             for device_key in device_keys:
                 hostname = device_key.decode().split(':')[1]
@@ -346,16 +344,16 @@ def migrate_existing_data():
                 if device_data:
                     device_json = json.loads(device_data)
                     
-                    # Przeorganizuj istniejące dane
+                    # Reorganize existing data
                     new_device = {"easynet": device_json.copy()}
                     
-                    # Sprawdź czy istnieją dane kopii zapasowych
+                    # Check if backup data exists
                     backup_key = f"s3_backups:{hostname}"
                     backup_data = redis_client.hgetall(backup_key)
                     if backup_data and b'backup_data' in backup_data:
                         new_device["backup_data"] = json.loads(backup_data[b'backup_data'].decode())
                     
-                    # Sprawdź czy istnieją dane walidacji
+                    # Check if validation data exists
                     validation_key = f"s3_validation:{hostname}"
                     validation_data = redis_client.hgetall(validation_key)
                     if validation_data and b'validation_data' in validation_data:
@@ -364,7 +362,7 @@ def migrate_existing_data():
                             "validation_data": json.loads(validation_data[b'validation_data'].decode())
                         }
                     
-                    # Sprawdź status operacyjny
+                    # Check operational status
                     opstatus_data = redis_client.get("s3_opstatus")
                     if opstatus_data:
                         opstatus_list = json.loads(opstatus_data)
@@ -373,10 +371,10 @@ def migrate_existing_data():
                                 new_device["opstatus"] = opstatus
                                 break
                     
-                    # Zapisz nową strukturę
+                    # Save new structure
                     pipeline.set(device_key, json.dumps(new_device))
             
-            # Wykonaj wszystkie operacje
+            # Execute all operations
             pipeline.execute()
             print(f"Successfully migrated {len(device_keys)} devices to new data structure")
             
@@ -385,7 +383,7 @@ def migrate_existing_data():
 
 def main():
     """Main function - runs continuously and updates data"""
-    # Na początku przeprowadź migrację istniejących danych
+    # At the beginning, perform migration of existing data
     migrate_existing_data()
     
     while True:

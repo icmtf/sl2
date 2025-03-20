@@ -153,7 +153,7 @@ def create_backup_charts(devices_df, backups):
         "🟣 Critical": "#800080",
         "⚫ Failure": "#000000",
         "⚪ Bad backup.json": "#808080",
-        "❌ No backup.json": "#FF0000"  # Czerwony dla braku pliku
+        "❌ No backup.json": "#FF0000"  # Red for missing file
     }
     
     # Initialize counters
@@ -280,7 +280,7 @@ def display_device_details(device, backups):
         # Display backup files if they exist
         if backup_list:
             for backup in backup_list:
-                emoji = '🔴'  # Możesz dostosować emoji w zależności od age_factor
+                emoji = '🔴'  # You can adjust the emoji based on age_factor
                 if backup.get('age_info', {}).get('age_factor', 0) == 0:
                     emoji = '🟢'
                 elif backup.get('age_info', {}).get('age_factor', 0) == 1:

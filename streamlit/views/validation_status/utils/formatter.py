@@ -18,7 +18,7 @@ def format_backup_status_value(hostname: str, backups: dict) -> str:
         try:
             age_status = get_backup_age_status(backup['date'], backup['max_age'])
             worst_age_status = min(worst_age_status, age_status)
-        except ValueError as e:  # Wyłapujemy błąd parsowania daty
+        except ValueError as e:  # Catch date parsing error
             return f"{get_emoji_color(-1)} Bad date format"
         except Exception as e:
             st.error(f"Error processing backup: {str(e)}")

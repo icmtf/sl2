@@ -65,7 +65,7 @@ async def get_easynet_devices():
                     device_data = redis_client.get(key)
                     if device_data:
                         device_json = json.loads(device_data)
-                        # Pobierz dane z sekcji easynet lub z całego obiektu jeśli easynet nie istnieje
+                        # Get data from the easynet section or from the entire object if easynet doesn't exist
                         easynet_data = device_json.get("easynet", device_json)
                         devices.append(easynet_data)
             
@@ -89,14 +89,14 @@ async def get_devices_backup_status():
                 if device_data:
                     device_json = json.loads(device_data)
                     
-                    # Pobierz dane z sekcji easynet (lub całego obiektu jeśli easynet nie istnieje)
+                    # Get data from the easynet section (or from the entire object if easynet doesn't exist)
                     easynet_data = device_json.get("easynet", {})
                     
-                    # Pobierz dane kopii zapasowych, jeśli istnieją
+                    # Get backup data if it exists
                     backup_info = device_json.get("backup_data", {})
                     backup_json_data = backup_info.get("backup_json_data", {})
                     
-                    # Przygotuj dane do wyświetlenia
+                    # Prepare data for display
                     device_data = {**easynet_data}
                     device_data.update({
                         'schema': backup_info.get('schema', False),
@@ -106,7 +106,7 @@ async def get_devices_backup_status():
                         'backup_files': []
                     })
                     
-                    # Dodaj listę plików kopii zapasowych, jeśli istnieją
+                    # Add the list of backup files if they exist
                     if backup_json_data and 'backup_list' in backup_json_data:
                         for backup in backup_json_data['backup_list']:
                             device_data['backup_files'].append(

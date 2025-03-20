@@ -2,7 +2,6 @@ import streamlit as st
 import redis
 import json
 import pandas as pd
-import re
 
 def load_validation_data():
     """Load validation data from the new Redis structure"""

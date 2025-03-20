@@ -7,9 +7,8 @@ from rich.console import Console
 from rich.panel import Panel
 from pathlib import Path
 from dotenv import load_dotenv
-from typing import Dict, List, Optional, Tuple
+from typing import List, Optional, Tuple
 from scm_platform_drivers import load_scm_drivers
-import time
 
 console = Console()
 load_dotenv()

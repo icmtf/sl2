@@ -95,20 +95,20 @@ def store_easynet_data_in_redis(devices):
                 hostname = device['hostname']
                 device_key = f"device:{hostname}"
                 
-                # Sprawdź, czy urządzenie już istnieje
+                # Check if the device already exists
                 existing_data = redis_client.get(device_key)
                 
                 if existing_data:
-                    # Jeśli urządzenie istnieje, aktualizuj tylko część easynet
+                    # If the device exists, update only the easynet part
                     device_json = json.loads(existing_data)
                     device_json["easynet"] = device
                     pipeline.set(device_key, json.dumps(device_json))
                 else:
-                    # Jeśli urządzenie nie istnieje, utwórz nowy wpis
+                    # If the device doesn't exist, create a new entry
                     new_device = {"easynet": device}
                     pipeline.set(device_key, json.dumps(new_device))
             
-            # Wykonaj wszystkie operacje
+            # Execute all operations
             pipeline.execute()
             print(f"Stored {len(devices)} EasyNet devices in Redis")
             
