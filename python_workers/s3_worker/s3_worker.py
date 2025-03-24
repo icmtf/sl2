@@ -424,8 +424,83 @@ def repair_existing_data_structure():
         except redis.RedisError as e:
             print(f"Error repairing data structure in Redis: {str(e)}")
 
+def debug_s3_paths():
+    """Funkcja diagnostyczna do debugowania ścieżek S3"""
+    print("\n=== DIAGNOSTYKA ŚCIEŻEK S3 ===")
+    try:
+        paginator = s3_client.get_paginator('list_objects_v2')
+        pages = paginator.paginate(
+            Bucket=config['S3_BUCKET'],
+            Prefix=f"{config['S3_BACKUPS_ROOT_DIR']}/"
+        )
+        
+        all_paths = []
+        for page in pages:
+            if 'Contents' in page:
+                all_paths.extend([obj['Key'] for obj in page['Contents']])
+        
+        print(f"Znaleziono {len(all_paths)} obiektów w ścieżce: {config['S3_BACKUPS_ROOT_DIR']}/")
+        print("\nPrzykładowe ścieżki:")
+        for path in all_paths[:10]:
+            print(f"- {path}")
+            
+        backup_files = [p for p in all_paths if p.endswith('backup.json')]
+        print(f"\nZnaleziono {len(backup_files)} plików backup.json")
+        
+        path_structures = {}
+        for path in backup_files[:20]:
+            parts = path.split('/')
+            parts_count = len(parts)
+            if parts_count not in path_structures:
+                path_structures[parts_count] = []
+            path_structures[parts_count].append(path)
+        
+        print("\nStruktura ścieżek plików backup.json:")
+        for parts_count, paths in path_structures.items():
+            print(f"\n{parts_count} części w ścieżce ({len(paths)} plików):")
+            for path in paths[:3]:
+                parts = path.split('/')
+                print(f"- {path}")
+                print(f"  Części: {parts}")
+        
+        print("\n=== URZĄDZENIA W REDIS ===")
+        device_keys = redis_client.keys("device:*")
+        print(f"Znaleziono {len(device_keys)} urządzeń w Redis")
+        
+        for key in device_keys[:5]:
+            hostname = key.decode().split(':')[1]
+            device_data = redis_client.get(key)
+            if device_data:
+                device_json = json.loads(device_data)
+                easynet = device_json.get("easynet", {})
+                device_class = easynet.get("device_class")
+                vendor = easynet.get("vendor")
+                
+                expected_path = f"{config['S3_BACKUPS_ROOT_DIR']}/{device_class}/{vendor}/{hostname}/backup.json"
+                exists = expected_path in all_paths
+                
+                print(f"\nUrządzenie: {hostname}")
+                print(f"- device_class: {device_class}")
+                print(f"- vendor: {vendor}")
+                print(f"- Oczekiwana ścieżka: {expected_path}")
+                print(f"- Ścieżka istnieje: {exists}")
+                
+                alt_paths = [p for p in all_paths if f"/{hostname}/" in p and p.endswith('backup.json')]
+                if alt_paths:
+                    print(f"- Znaleziono alternatywne ścieżki ({len(alt_paths)}):")
+                    for p in alt_paths:
+                        print(f"  * {p}")
+    except Exception as e:
+        print(f"Błąd diagnostyki: {str(e)}")
+        import traceback
+        print(traceback.format_exc())
+    print("=== KONIEC DIAGNOSTYKI ===\n")
+
 def main():
     """Main function - runs continuously and updates data"""
+    # Wykonaj diagnostykę
+    debug_s3_paths()
+    
     # At the beginning, repair any corrupted data structure
     repair_existing_data_structure()
     

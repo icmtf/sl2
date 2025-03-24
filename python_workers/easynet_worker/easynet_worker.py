@@ -39,21 +39,10 @@ config = config_loader.get_config()
 # Initialize Redis client
 redis_client = redis.Redis.from_url(os.getenv('REDIS_URL', 'redis://redis:6379'))
 
-# # Initialize EasyNet client
-# easynet = EasyNet(
-#     apigee_base_uri=config['APIGEE_BASE_URI'],
-#     apigee_token_endpoint=config['APIGEE_TOKEN_ENDPOINT'],
-#     apigee_easynet_endpoint=config['APIGEE_EASYNET_ENDPOINT'],
-#     apigee_certificate=config['APIGEE_CERTIFICATE'],
-#     apigee_key=config['APIGEE_KEY'],
-#     easynet_key=config['EASYNET_KEY'],
-#     easynet_secret=config['EASYNET_SECRET'],
-#     ca_requests_bundle=config.get('BNPP_CA_BUNDLE')
-# )
 
 def get_easynet_data():
     with tracer.start_as_current_span("get_easynet_data"):
-        environment = os.getenv('ENVIRONMENT', 'local')
+        environment = config['ENVIRONMENT']
         if environment == 'production':
             print(f"I'm using Environment: {environment}")
             # Use EasyNet in production
@@ -89,36 +78,22 @@ def get_easynet_data():
 def store_easynet_data_in_redis(devices):
     with tracer.start_as_current_span("store_easynet_data_in_redis"):
         try:
+            # First, delete all existing device keys
+            existing_device_keys = redis_client.keys("device:*")
+            if existing_device_keys:
+                redis_client.delete(*existing_device_keys)
+                print(f"Deleted {len(existing_device_keys)} existing device keys from Redis")
+            
+            # Now add new devices
             pipeline = redis_client.pipeline()
             
             for device in devices:
                 hostname = device['hostname']
                 device_key = f"device:{hostname}"
                 
-                # Check if the device already exists
-                existing_data = redis_client.get(device_key)
-                
-                if existing_data:
-                    # If the device exists, update only the easynet part
-                    try:
-                        device_json = json.loads(existing_data)
-                        
-                        # Ensure we're dealing with a dictionary
-                        if not isinstance(device_json, dict):
-                            device_json = {}
-                            
-                        # Clear any existing easynet section to prevent nested structures
-                        device_json["easynet"] = device
-                        
-                        pipeline.set(device_key, json.dumps(device_json))
-                    except json.JSONDecodeError:
-                        # If existing data is corrupted, create a new entry
-                        new_device = {"easynet": device}
-                        pipeline.set(device_key, json.dumps(new_device))
-                else:
-                    # If the device doesn't exist, create a new entry
-                    new_device = {"easynet": device}
-                    pipeline.set(device_key, json.dumps(new_device))
+                # Create a new entry with easynet data
+                new_device = {"easynet": device}
+                pipeline.set(device_key, json.dumps(new_device))
             
             # Execute all operations
             pipeline.execute()

@@ -10,5 +10,6 @@ RUN pip install --no-cache-dir -r requirements.txt
 COPY common/pyinet ./pyinet
 COPY s3_worker/settings.yaml .
 COPY s3_worker/s3_worker.py .
+COPY s3_worker/s3_worker_new.py .
 
-CMD ["python", "s3_worker.py"]
+CMD ["python", "s3_worker_new.py"]
