@@ -22,43 +22,18 @@ def load_devices_data():
                 try:
                     device_json = json.loads(device_data)
                     
-                    # Pobierz hostname z klucza
-                    hostname_from_key = key.decode().split(':')[1]
-                    
-                    # Spróbuj pobrać dane easynet
+                    # Pobierz dane easynet
                     easynet_data = device_json.get("easynet", {})
                     
                     # Jeśli easynet zawiera dane, użyj ich
                     if easynet_data:
                         device_info = easynet_data.copy()
-                        # Upewnij się, że mamy hostname
-                        if not device_info.get('hostname'):
-                            device_info['hostname'] = hostname_from_key
+                        
+                        # Dodaj referencję do backup_data
+                        if "backup_data" in device_json:
+                            device_info["_backup_data_ref"] = device_json["backup_data"]
                             
-                        # NIE zmieniamy nazwy pola ip, używamy oryginalnej nazwy z małych liter
-                    else:
-                        # Jeśli easynet jest pusty, utwórz podstawowy obiekt i pobierz dane z innych sekcji
-                        device_info = {'hostname': hostname_from_key}
-                        
-                        # Pobierz vendor z backup_data, validation lub opstatus
-                        if 'backup_data' in device_json and device_json['backup_data'].get('vendor'):
-                            device_info['vendor'] = device_json['backup_data'].get('vendor')
-                        elif 'validation' in device_json and device_json['validation'].get('vendor'):
-                            device_info['vendor'] = device_json['validation'].get('vendor')
-                        elif 'opstatus' in device_json and device_json['opstatus'].get('vendor'):
-                            device_info['vendor'] = device_json['opstatus'].get('vendor')
-                        
-                        # Pobierz device_class z backup_data lub validation
-                        if 'backup_data' in device_json and device_json['backup_data'].get('device_class'):
-                            device_info['device_class'] = device_json['backup_data'].get('device_class')
-                        elif 'validation' in device_json and device_json['validation'].get('device_class'):
-                            device_info['device_class'] = device_json['validation'].get('device_class')
-                    
-                    # Dodaj referencję do backup_data
-                    if "backup_data" in device_json:
-                        device_info["_backup_data_ref"] = device_json["backup_data"]
-                        
-                    devices.append(device_info)
+                        devices.append(device_info)
                 except json.JSONDecodeError as e:
                     pass
         
@@ -175,46 +150,23 @@ df = pd.DataFrame(devices_list)
 
 # Add backup status column
 df['Backup Status'] = df['hostname'].apply(
-    lambda x: format_backup_status_value(x, backups) if x else 'Unknown'
+    lambda x: format_backup_status_value(x, backups) if x else None
 )
-
-# Upewnij się, że kolumny vendor i device_class istnieją
-if 'vendor' not in df.columns:
-    df['vendor'] = 'Unknown'
-else:
-    df['vendor'] = df['vendor'].fillna('Unknown')
-
-if 'device_class' not in df.columns:
-    df['device_class'] = 'Unknown'
-else:
-    df['device_class'] = df['device_class'].fillna('Unknown')
-
-# Przekształć nazwę country na wielką literę "Country"
-if 'country' in df.columns:
-    df['Country'] = df['country'].fillna('N/A')  # Zastąp None przez 'N/A'
-else:
-    df['Country'] = 'N/A'
-
-# Przekształć nazwę IP jeśli istnieje, inaczej użyj ip
-if 'ip' in df.columns:
-    df['ip'] = df['ip'].fillna('N/A')  # Zastąp None przez 'N/A'
-elif 'IP' in df.columns:
-    df['ip'] = df['IP'].fillna('N/A')  # Skopiuj dane z 'IP' do 'ip'
-    df = df.drop(columns=['IP'])  # Usuń kolumnę 'IP' aby uniknąć duplikacji
-else:
-    df['ip'] = 'N/A'
 
 # Zmień nazwy kolumn
 df = df.rename(columns={
     'device_class': 'Device Class',
-    'vendor': 'Vendor'
+    'vendor': 'Vendor',
+    'country': 'Country'
 })
 
-# Upewnij się, że kolumny używane do filtrowania nie zawierają wartości None
+# Define columns used for filtering
 filtering_cols = ["Country", "Vendor", "Device Class", "Backup Status"]
+
+# Prepare data for filtering - replace None with empty strings for filters
 for col in filtering_cols:
     if col in df.columns:
-        df[col] = df[col].fillna('Unknown')  # Zastąp None przez 'Unknown'
+        df[col] = df[col].fillna('')  # Only for filtering purposes
 
 # Setup filters
 st.sidebar.header("Filters")
@@ -246,13 +198,7 @@ display_cols = [
     'Select'
 ]
 
-# Ensure all required columns exist in DataFrame
-for col in display_cols:
-    if col not in filtered_df.columns and col != 'Select':
-        if col == 'ip' and 'IP' in filtered_df.columns:
-            filtered_df['ip'] = filtered_df['IP']  # Przekopiuj dane z IP do ip jeśli potrzeba
-        else:
-            filtered_df[col] = 'N/A'
+
 
 # Add Select column for details
 filtered_df['Select'] = False

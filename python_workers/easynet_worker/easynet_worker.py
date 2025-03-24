@@ -69,7 +69,7 @@ def get_easynet_data():
                         easynet_secret=config['EASYNET_SECRET'],
                         ca_requests_bundle=config.get('BNPP_CA_BUNDLE')
                     )
-                    return easynet.get_devices()
+                    return easynet.get_devices(size=5, region="EMEA", type="Security")
                 except Exception as e:
                     print(f"Error getting EasyNet data in production: {e}")
                     return []
