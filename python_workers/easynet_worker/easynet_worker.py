@@ -78,26 +78,31 @@ def get_easynet_data():
 def store_easynet_data_in_redis(devices):
     with tracer.start_as_current_span("store_easynet_data_in_redis"):
         try:
-            # First, delete all existing device keys
-            existing_device_keys = redis_client.keys("device:*")
-            if existing_device_keys:
-                redis_client.delete(*existing_device_keys)
-                print(f"Deleted {len(existing_device_keys)} existing device keys from Redis")
-            
-            # Now add new devices
             pipeline = redis_client.pipeline()
+            devices_updated = 0
+            devices_created = 0
             
             for device in devices:
                 hostname = device['hostname']
                 device_key = f"device:{hostname}"
                 
-                # Create a new entry with easynet data
-                new_device = {"easynet": device}
-                pipeline.set(device_key, json.dumps(new_device))
+                # Sprawdź czy urządzenie już istnieje w Redis
+                current_data = redis_client.get(device_key)
+                if current_data:
+                    # Jeśli istnieje, zaktualizuj tylko dane easynet
+                    current_json = json.loads(current_data)
+                    current_json["easynet"] = device
+                    pipeline.set(device_key, json.dumps(current_json))
+                    devices_updated += 1
+                else:
+                    # Jeśli nie istnieje, utwórz nowy wpis
+                    new_device = {"easynet": device}
+                    pipeline.set(device_key, json.dumps(new_device))
+                    devices_created += 1
             
             # Execute all operations
             pipeline.execute()
-            print(f"Stored {len(devices)} EasyNet devices in Redis")
+            print(f"Updated {devices_updated} and created {devices_created} EasyNet devices in Redis (total: {len(devices)})")
             
         except redis.RedisError as e:
             print(f"Error storing EasyNet data in Redis: {e}")

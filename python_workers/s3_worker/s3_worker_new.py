@@ -214,7 +214,7 @@ def process_device_files(devices, s3_files):
             
             # Skip if required data is missing
             if not device_class or not vendor or not hostname:
-                logger.warning(f"Device {hostname} is missing required data (device_class={device_class}, vendor={vendor})")
+                logger.warning(f"[{hostname}] is missing required data in EasyNet used to locate S3 files (device_class={device_class}, vendor={vendor}). Will be ignored.")
                 continue
             
             # Build expected paths
@@ -265,9 +265,6 @@ def process_device_files(devices, s3_files):
             # Update Redis - bezpieczna aktualizacja z blokadą
             redis_key = f"device:{hostname}"
             try:
-                # Dodajmy debug, co chcemy zapisać do Redis
-                logger.info(f"REDIS DEBUG: Przygotowano klucze do zapisu dla {hostname}: {list(updated_data.keys())}")
-                
                 # Implementujemy atomową aktualizację - pobieramy najnowsze dane, dodajemy nasze klucze, zapisujemy z powrotem
                 pipe = redis_client.pipeline()
                 
@@ -275,7 +272,6 @@ def process_device_files(devices, s3_files):
                 current_data = redis_client.get(redis_key)
                 if current_data:
                     current_json = json.loads(current_data)
-                    logger.info(f"REDIS DEBUG: Znaleziono istniejace dane w Redis - klucze: {list(current_json.keys())}")
                     
                     # Zaktualizuj klucze, które chcemy dodać, zachowując inne klucze
                     for k in ['backup', 'config_validation', 'operational_status']:
@@ -285,25 +281,10 @@ def process_device_files(devices, s3_files):
                     # Zapisz zaktualizowane dane
                     pipe.set(redis_key, json.dumps(current_json))
                     pipe.execute()
-                    logger.info(f"REDIS DEBUG: Zaktualizowano istniejący wpis w Redis dla {hostname}")
                 else:
                     # Nie znaleziono danych - zapisz nasze dane
                     pipe.set(redis_key, json.dumps(updated_data))
                     pipe.execute()
-                    logger.info(f"REDIS DEBUG: Utworzono nowy wpis w Redis dla {hostname}")
-                
-                # Sprawdź, czy dane faktycznie zostały zapisane
-                verification = redis_client.get(redis_key)
-                if verification:
-                    verified_data = json.loads(verification)
-                    logger.info(f"REDIS DEBUG: Zweryfikowane klucze po zapisie: {list(verified_data.keys())}")
-                    
-                    # Sprawdź, czy są nasze klucze
-                    for k in ['backup', 'config_validation', 'operational_status']:
-                        if k in verified_data:
-                            logger.info(f"REDIS DEBUG: Klucz {k} jest w Redis dla {hostname}")
-                        else:
-                            logger.warning(f"REDIS DEBUG: Klucz {k} BRAKUJE w Redis dla {hostname}!")
                 
                 # Określamy, czy faktycznie dodano nowe dane czy tylko puste obiekty
                 has_data = False
@@ -313,9 +294,9 @@ def process_device_files(devices, s3_files):
                         break
                         
                 if has_data:
-                    logger.info(f"Synchronized Redis entry for {hostname} with file data")
+                    logger.info(f"Updated Redis entry for {hostname} with file data")
                 else:
-                    logger.info(f"Synchronized Redis entry for {hostname} with empty templates")
+                    logger.info(f"Updated Redis entry for {hostname} with empty keys")
                     
                 devices_updated += 1
             except Exception as e:
@@ -347,18 +328,6 @@ def main():
     # Pobierz dane urządzeń z Redis
     devices = get_devices_from_redis()
     logger.info(f"Retrieved {len(devices)} devices from Redis")
-    
-    # Wypisz pierwsze 2 urządzenia jako przykład
-    if devices:
-        sample_hostnames = list(devices.keys())[:2]
-        for hostname in sample_hostnames:
-            easynet_data = devices[hostname].get('easynet', {})
-            device_class = easynet_data.get('device_class', 'None')
-            vendor = easynet_data.get('vendor', 'None')
-            logger.info(f"  - device_class: {device_class}")
-            logger.info(f"  - vendor: {vendor}")
-            # Sprawdź jakie klucze są w urządzeniu
-            logger.info(f"  - Keys in device data: {list(devices[hostname].keys())}")
     
     # Listuj pliki w S3
     s3_files = list_files_in_s3()
