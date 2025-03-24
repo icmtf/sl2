@@ -84,7 +84,7 @@ class EasyNet:
                 headers=self.token_headers,
                 auth=self.auth,
                 cert=self.cert,
-                verify=self.ca_requests_bundle,
+                verify=False,  # Wyłączenie weryfikacji certyfikatu SSL
             )
             response.raise_for_status()
             return response.json()["access_token"]
@@ -130,7 +130,7 @@ class EasyNet:
                 url=f"{self.easynet_url}/devices?{urlencode(params)}",
                 headers=self.headers,
                 cert=self.cert,
-                verify=self.ca_requests_bundle
+                verify=False  # Wyłączenie weryfikacji certyfikatu SSL
             )
             response.raise_for_status()
             return response.json()["dta"]["devices"]

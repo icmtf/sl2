@@ -10,6 +10,10 @@ from opentelemetry.sdk.trace.export import BatchSpanProcessor
 from opentelemetry.sdk.resources import Resource
 from opentelemetry.instrumentation.requests import RequestsInstrumentor
 
+# Wyłącz ostrzeżenia o niezweryfikowanych certyfikatach
+import urllib3
+urllib3.disable_warnings(urllib3.exceptions.InsecureRequestWarning)
+
 from pyinet.common.config_loader import ConfigLoader
 from pyinet.common.easynet import EasyNet
 
@@ -31,13 +35,22 @@ tracer = trace.get_tracer(__name__)
 load_dotenv()
 
 # Load configuration
+# Klucze wymagane do połączenia z EasyNet API
 required_keys = ["EASYNET_KEY", "EASYNET_SECRET", "APIGEE_BASE_URI", "APIGEE_TOKEN_ENDPOINT", 
                  "APIGEE_EASYNET_ENDPOINT", "APIGEE_CERTIFICATE", "APIGEE_KEY"]
-config_loader = ConfigLoader(required_keys=required_keys, yaml_path='settings.yaml', env="prd")
+
+# Wartości domyślne - w tym environment="local", które będzie użyte, jeśli nie zdefiniowano inaczej
+defaults = {"ENVIRONMENT": "local"}
+
+# Stwórz loader i pobierz konfigurację
+config_loader = ConfigLoader(required_keys=required_keys, defaults=defaults, yaml_path='settings.yaml', env="prd")
 config = config_loader.get_config()
 
 # Initialize Redis client
 redis_client = redis.Redis.from_url(os.getenv('REDIS_URL', 'redis://redis:6379'))
+
+# Wyświetl zaladowane ustawienia
+print(f"Loaded configuration: ENVIRONMENT={config.get('ENVIRONMENT', 'not set')}")
 
 # # Initialize EasyNet client
 # easynet = EasyNet(
@@ -53,7 +66,8 @@ redis_client = redis.Redis.from_url(os.getenv('REDIS_URL', 'redis://redis:6379')
 
 def get_easynet_data():
     with tracer.start_as_current_span("get_easynet_data"):
-        environment = os.getenv('ENVIRONMENT', 'local')
+        # Pobierz environment z config (settings.yaml)
+        environment = config['ENVIRONMENT']  # Bez wartości domyślnej, bo już jest w ConfigLoader
         if environment == 'production':
             print(f"I'm using Environment: {environment}")
             # Use EasyNet in production
