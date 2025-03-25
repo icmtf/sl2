@@ -7,7 +7,7 @@ def backup_status_bar_chart_value(hostname: str, backups: dict) -> int:
     Get numerical backup status value for bar chart visualization
     Returns:
     -3: No backup.json
-    -2: Bad backup.json (valid_schema is False or None)
+    -2: Bad backup.json (valid_schema is False)
     -1: Invalid date
     0: OK (age < max_age)
     1: Warning (max_age <= age < 2*max_age)
@@ -24,20 +24,32 @@ def backup_status_bar_chart_value(hostname: str, backups: dict) -> int:
             return -3  # No backup.json
 
         backup_info = backups.get(hostname, {})
-        if not isinstance(backup_info, dict):
-            return -2  # Bad backup data
+        # Jeśli backup_info jest pusty lub nie jest słownikiem, traktujemy jako brak backup.json
+        if not backup_info or not isinstance(backup_info, dict):
+            return -3  # No backup.json
             
+        # Sprawdź wynik walidacji schematu
         valid_schema = backup_info.get('valid_schema')
-        if valid_schema is False or valid_schema is None:
+        if valid_schema is False:
             return -2  # Bad backup.json
-
-        backup_json_data = backup_info.get('backup_json_data', {})
-        if not isinstance(backup_json_data, dict):
-            return -2  # Bad backup JSON
             
-        backup_list = backup_json_data.get('backup_list', [])
-        if not isinstance(backup_list, list) or not backup_list:
-            return -2  # No backups or bad format
+        # Szukamy listy kopii zapasowych - dostosowanie do różnych struktur danych
+        backup_list = None
+        
+        # Sprawdź strukturę z s3_worker_new - lista kopii może być bezpośrednio w backup_info
+        if 'backup_list' in backup_info:
+            backup_list = backup_info.get('backup_list', [])
+        # Starsza struktura danych
+        elif 'backup_json_data' in backup_info:
+            backup_json_data = backup_info.get('backup_json_data', {})
+            backup_list = backup_json_data.get('backup_list', [])
+        # Jeśli to jest sama lista, użyj jej bezpośrednio
+        elif isinstance(backup_info, list):
+            backup_list = backup_info
+            
+        # Jeśli nie udało się znaleźć żadnej listy kopii, uznajemy za błąd walidacji
+        if not backup_list or not isinstance(backup_list, list):
+            return -2  # Bad backup.json
             
         worst_age_status = 0
 

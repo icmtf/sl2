@@ -58,12 +58,16 @@ def load_backup_data():
                     # Pobierz hostname bezpośrednio z klucza
                     hostname = key.decode().split(':')[1]
                     
-                    # Jeśli mamy hostname i backup_data, dodaj do słownika
-                    if hostname and "backup_data" in device_json:
+                    # Jeśli mamy hostname i backup, dodaj do słownika (s3_worker_new używa klucza 'backup')
+                    if hostname and "backup" in device_json:
+                        backups[hostname] = device_json["backup"]
+                        backup_count += 1
+                    elif hostname and "backup_data" in device_json:
+                        # Kompatybilność wsteczna
                         backups[hostname] = device_json["backup_data"]
                         backup_count += 1
                 except Exception as e:
-                    pass
+                    pass  # Cichy błąd parsowania
         
         print(f"Loaded {backup_count} backup data entries")
         return backups
@@ -103,9 +107,14 @@ def display_device_details(device, backups):
                 st.write(f"**{label}:** {device[field]}")
         
         if hostname in backups:
-            backup_data = backups[hostname].get("backup_json_data", {})
+            backup_data = backups[hostname]
+            # Spróbuj znaleźć właściwe dane do wyświetlenia
+            display_data = backup_data
+            if 'backup_json_data' in backup_data:
+                display_data = backup_data.get("backup_json_data", {})
+            
             with st.popover("📄 backup.json"):
-                st.json(backup_data)
+                st.json(display_data)
         else:
             st.button("📄 backup.json", disabled=True, help="No backup.json available")
 
