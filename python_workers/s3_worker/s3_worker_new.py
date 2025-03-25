@@ -260,7 +260,7 @@ def process_device_files(devices, s3_files):
             
             # Check backup.json
             if backup_path in all_files_set:
-                logger.info(f"Found backup.json for {hostname}")
+                logger.info(f"[{hostname}] Found backup.json")
                 backup_data = get_file_content(backup_path)
                 if backup_data:
                     # Check if schema exists for this device
@@ -274,21 +274,21 @@ def process_device_files(devices, s3_files):
                             # Validate original_data before adding schema and valid_schema keys
                             validate(instance=backup_data, schema=template_schemas[schema_key])
                             valid_schema = True
-                            logger.info(f"Backup data for {hostname} validated successfully against schema")
+                            logger.info(f"[{hostname}] Backup data validated successfully against schema")
                         except ValidationError as e:
                             valid_schema = False
-                            logger.warning(f"Backup data for {hostname} failed schema validation: {str(e)}")
+                            logger.warning(f"[{hostname}] Backup data failed schema validation: {str(e)}")
                     else:
-                        logger.info(f"No schema available for {hostname} ({schema_key})")
+                        logger.info(f"[{hostname}] No schema available ({schema_key})")
                     
                     # Now add schema and valid_schema keys to backup_data object
                     backup_data['schema'] = has_schema
                     backup_data['valid_schema'] = valid_schema
                     
                     updated_data['backup'] = backup_data
-                    logger.info(f"Backup data loaded for {hostname}")
+                    logger.info(f"[{hostname}] Backup data loaded")
                 else:
-                    logger.warning(f"Backup data empty for {hostname} despite file existing at {backup_path}")
+                    logger.warning(f"[{hostname}] Backup data empty despite file existing at {backup_path}")
                     updated_data['backup'] = {}
                 files_processed += 1
             else:
@@ -298,13 +298,13 @@ def process_device_files(devices, s3_files):
             
             # Check config_validation.json
             if config_validation_path in all_files_set:
-                logger.info(f"Found config_validation.json for {hostname}")
+                logger.info(f"[{hostname}] Found config_validation.json")
                 config_validation_data = get_file_content(config_validation_path)
                 if config_validation_data:
                     updated_data['config_validation'] = config_validation_data
-                    logger.info(f"Config validation data loaded for {hostname}")
+                    logger.info(f"[{hostname}] Config validation data loaded")
                 else:
-                    logger.warning(f"Config validation data empty for {hostname} despite file existing at {config_validation_path}")
+                    logger.warning(f"[{hostname}] Config validation data empty despite file existing at {config_validation_path}")
                     updated_data['config_validation'] = {}
                 files_processed += 1
             else:
@@ -314,13 +314,13 @@ def process_device_files(devices, s3_files):
             
             # Check operational_status.json
             if operational_status_path in all_files_set:
-                logger.info(f"Found operational_status.json for {hostname}")
+                logger.info(f"[{hostname}] Found operational_status.json")
                 operational_status_data = get_file_content(operational_status_path)
                 if operational_status_data:
                     updated_data['operational_status'] = operational_status_data
-                    logger.info(f"Operational status data loaded for {hostname}")
+                    logger.info(f"[{hostname}] Operational status data loaded")
                 else:
-                    logger.warning(f"Operational status data empty for {hostname} despite file existing at {operational_status_path}")
+                    logger.warning(f"[{hostname}] Operational status data empty despite file existing at {operational_status_path}")
                     updated_data['operational_status'] = {}
                 files_processed += 1
             else:
@@ -359,13 +359,13 @@ def process_device_files(devices, s3_files):
                         added_data_types.append(k)
                         
                 if added_data_types:
-                    logger.info(f"Updated Redis entry for {hostname} with {', '.join(added_data_types)}")
+                    logger.info(f"[{hostname}] Updated Redis entry with {', '.join(added_data_types)}")
                 else:
-                    logger.info(f"Updated Redis entry for {hostname} with empty keys")
+                    logger.info(f"[{hostname}] Updated Redis entry with empty keys")
                     
                 devices_updated += 1
             except Exception as e:
-                logger.error(f"Failed to update Redis for {hostname}: {str(e)}")
+                logger.error(f"[{hostname}] Failed to update Redis: {str(e)}")
                 logger.error(f"Traceback: {traceback.format_exc()}")
             
             # Log missing files
