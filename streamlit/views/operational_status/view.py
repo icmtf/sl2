@@ -10,11 +10,7 @@ redis_client = redis.Redis.from_url(REDIS_URL)
 
 def load_devices_data():
     """
-    Load devices data from Redis, specifically from the 'easynet' section of 'device:hostname' keys.
-    Extract only specified columns.
-    
-    Returns:
-        list: A list of dictionaries containing device data with selected columns.
+    Load devices data from Redis, specifically from the 'easynet' section.
     """
     try:
         devices = []
@@ -25,22 +21,19 @@ def load_devices_data():
             if device_data:
                 device_json = json.loads(device_data)
                 
-                # Extract hostname from key
+                # Extract hostname from key if needed
                 hostname_from_key = key.decode().split(':')[1]
                 
-                # Create a device object with only specified fields
+                # Create a flattened device object
                 device = {}
                 
                 # Extract data from easynet section if available
                 if "easynet" in device_json and isinstance(device_json["easynet"], dict):
                     easynet_data = device_json["easynet"]
-                    
-                    # Extract only the specified fields
-                    for field in ['hostname', 'ip', 'country', 'device_class', 'vendor']:
-                        device[field] = easynet_data.get(field, "")  # Use empty string instead of 'N/A'
+                    device.update(easynet_data)  # Add all easynet data to the device object
                 
                 # Ensure hostname exists
-                if not device.get("hostname"):
+                if "hostname" not in device:
                     device["hostname"] = hostname_from_key
                 
                 devices.append(device)
@@ -97,11 +90,11 @@ def get_operational_status(hostname, opstatus_data, status_key):
             
             # Check status data format
             if isinstance(status_info, dict):
-                status = status_info.get('status', '')  # Use empty string instead of 'N/A'
+                status = status_info.get('status', 'N/A')
                 message = status_info.get('message', '')
             else:
                 # Status may be a direct value
-                status = status_info if isinstance(status_info, str) else ''
+                status = status_info
                 message = ''
                 
             # Clean the message
@@ -111,10 +104,10 @@ def get_operational_status(hostname, opstatus_data, status_key):
                     message = ''
             
             return status, message
-        return '', ''  # Use empty string instead of 'N/A'
+        return 'N/A', ''
     except Exception as e:
         print(f"Error in get_operational_status for {hostname}, {status_key}: {str(e)}")
-        return '', ''
+        return 'N/A', ''
 
 def get_colored_status(status):
     """Convert status to colored text"""
@@ -124,30 +117,24 @@ def get_colored_status(status):
         return '🔴'  
     elif status == 'NA':
         return '⚫'  
-    elif not status:  # Empty status
-        return ''
     else:
-        return '⚪'
+        return '⚪'  
 
 def display_device_details(device, opstatus_data):
     """Display detailed device information including operational status"""
     hostname = device['hostname']
     device_opstatus = opstatus_data.get(hostname, {})
 
-    # Replace empty values with 'N/A' only for display in details
-    def display_value(value):
-        return value if value else 'N/A'
-
-    with st.expander(f"🔍 {hostname} ({display_value(device.get('ip'))})", expanded=False):
+    with st.expander(f"🔍 {hostname} ({device.get('ip', 'N/A')})", expanded=False):
         col1, col2 = st.columns(2)
         
         with col1:
             st.write("##### Device Details")
             st.write(f"**Hostname:** {hostname}")
-            st.write(f"**IP Address:** {display_value(device.get('ip'))}")
-            st.write(f"**Country:** {display_value(device.get('country'))}")
-            st.write(f"**Device Class:** {display_value(device.get('device_class'))}")
-            st.write(f"**Vendor:** {display_value(device.get('vendor'))}")
+            st.write(f"**IP Address:** {device.get('ip', 'N/A')}")
+            st.write(f"**Country:** {device.get('country', 'N/A')}")
+            st.write(f"**Device Class:** {device.get('device_class', 'N/A')}")
+            st.write(f"**Vendor:** {device.get('vendor', 'N/A')}")
         
         with col2:
             st.write("##### Operational Status Details")
@@ -173,19 +160,18 @@ def display_device_details(device, opstatus_data):
                         
                         # Handle different data formats
                         if isinstance(status_info, dict):
-                            status = status_info.get('status', '')
+                            status = status_info.get('status', 'N/A')
                             message = status_info.get('message', '')
                             if isinstance(message, str):
                                 message = message.strip('"')
                                 if message in ['No message found', '', 'NA']:
                                     message = 'No additional information'
                         else:
-                            status = status_info if isinstance(status_info, str) else ''
+                            status = status_info if isinstance(status_info, str) else 'N/A'
                             message = 'No additional information'
                         
-                        status_display = display_value(status)
                         colored_status = get_colored_status(status)
-                        st.write(f"**{key}:** {colored_status} ({status_display}) _{message}_")
+                        st.write(f"**{key}:** {colored_status} ({status}) _{message}_")
             else:
                 st.warning("No operational status data available for this device.")
 
@@ -200,48 +186,47 @@ if not devices:
     st.warning("No devices data available")
     st.stop()
     
-# Create DataFrame with only selected columns
+# Create DataFrame
 df = pd.DataFrame(devices)
 
-# Define column order
-display_cols = [
-    'hostname', 
-    'ip', 
-    'country', 
-    'device_class',
-    'vendor', 
-    'SSH_port', 
-    'HTTPS_port', 
-    'SNMP', 
-    'remote_auth', 
-    'syslog', 
-    'Select'
-]
+# Rename columns to be consistent with backup_status view
+df = df.rename(columns={
+    'device_class': 'Device Class',
+    'vendor': 'Vendor',
+    'country': 'Country'
+})
+
+# Define columns used for filtering
+filtering_cols = ["Country", "Vendor", "Device Class"]
+
+# Prepare data for filtering - replace None with empty strings for filters
+for col in filtering_cols:
+    if col in df.columns:
+        df[col] = df[col].fillna('')  # Only for filtering purposes
 
 # Sidebar filters
 st.sidebar.header("Filters")
 
-# Filter out None values from filter options
-# Country filter
-countries = sorted([c for c in df['country'].unique().tolist() if c])
+# Country filter - use unique values including empty strings
+countries = sorted(df['Country'].unique().tolist())
 selected_countries = st.sidebar.multiselect(
-    "Select Countries",
+    "Select Country",
     countries,
     default=[]
 )
 
-# Device Class filter
-device_classes = sorted([d for d in df['device_class'].unique().tolist() if d])
+# Device Class filter - use unique values including empty strings
+device_classes = sorted(df['Device Class'].unique().tolist())
 selected_device_classes = st.sidebar.multiselect(
-    "Select Device Classes",
+    "Select Device Class",
     device_classes,
     default=[]
 )
 
-# Vendor filter
-vendors = sorted([v for v in df['vendor'].unique().tolist() if v])
+# Vendor filter - use unique values including empty strings
+vendors = sorted(df['Vendor'].unique().tolist())
 selected_vendors = st.sidebar.multiselect(
-    "Select Vendors",
+    "Select Vendor",
     vendors,
     default=[]
 )
@@ -250,13 +235,13 @@ selected_vendors = st.sidebar.multiselect(
 mask = pd.Series([True] * len(df))
 
 if selected_countries:
-    mask &= df['country'].isin(selected_countries)
+    mask &= df['Country'].isin(selected_countries)
 
 if selected_device_classes:
-    mask &= df['device_class'].isin(selected_device_classes)
+    mask &= df['Device Class'].isin(selected_device_classes)
 
 if selected_vendors:
-    mask &= df['vendor'].isin(selected_vendors)
+    mask &= df['Vendor'].isin(selected_vendors)
     
 # Filter the DataFrame
 filtered_df = df[mask].copy()
@@ -269,12 +254,23 @@ for col in operational_status_columns:
         lambda x: get_operational_status(x, opstatus_data, col)[0]
     )
     filtered_df[col + '_icon'] = filtered_df[col].apply(get_colored_status)
-    # Only add space and status text if status is not empty
-    filtered_df[col] = filtered_df.apply(
-        lambda row: f"{row[col + '_icon']} {row[col]}" if row[col] else "", 
-        axis=1
-    )
+    filtered_df[col] = filtered_df[col + '_icon'] + ' ' + filtered_df[col]
     filtered_df = filtered_df.drop(col + '_icon', axis=1)
+
+# Define column order
+display_cols = [
+    'hostname', 
+    'ip', 
+    'Country', 
+    'Device Class',
+    'Vendor', 
+    'SSH_port', 
+    'HTTPS_port', 
+    'SNMP', 
+    'remote_auth', 
+    'syslog', 
+    'Select'
+]
 
 # Add Select column for details
 filtered_df['Select'] = False
@@ -290,9 +286,9 @@ edited_df = st.data_editor(
         ),
         "hostname": "Hostname",
         "ip": "IP Address", 
-        "country": "Country",
-        "device_class": "Device Class",
-        "vendor": "Vendor",
+        "Country": "Country",
+        "Device Class": "Device Class",
+        "Vendor": "Vendor",
         "SSH_port": st.column_config.Column(
             "SSH Port",
             help="SSH Port Status"
@@ -322,8 +318,8 @@ edited_df = st.data_editor(
 selected_rows = edited_df[edited_df['Select']]
 if not selected_rows.empty:
     st.write("### Selected Device Details")
-    devices_dict = {device['hostname']: device for device in devices}
+    devices_dict = {device.get('hostname', ''): device for device in devices if device.get('hostname')}
     for _, row in selected_rows.iterrows():
-        hostname = row['hostname']
-        if hostname in devices_dict:
+        hostname = row.get('hostname')
+        if hostname and hostname in devices_dict:
             display_device_details(devices_dict[hostname], opstatus_data)
