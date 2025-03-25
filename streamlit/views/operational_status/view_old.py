@@ -5,17 +5,13 @@ import json
 import os
 from datetime import datetime
 
+# Remove debug_json_structure function as it's no longer needed
+
+
 REDIS_URL = os.getenv('REDIS_URL', 'redis://redis:6379')
 redis_client = redis.Redis.from_url(REDIS_URL)
 
 def load_devices_data():
-    """
-    Load devices data from Redis, specifically from the 'easynet' section of 'device:hostname' keys.
-    Extract only specified columns.
-    
-    Returns:
-        list: A list of dictionaries containing device data with selected columns.
-    """
     try:
         devices = []
         device_keys = redis_client.keys("device:*")
@@ -25,19 +21,16 @@ def load_devices_data():
             if device_data:
                 device_json = json.loads(device_data)
                 
-                # Extract hostname from key
+                # Extract hostname from key if needed
                 hostname_from_key = key.decode().split(':')[1]
                 
-                # Create a device object with only specified fields
+                # Create a flattened device object
                 device = {}
                 
                 # Extract data from easynet section if available
                 if "easynet" in device_json and isinstance(device_json["easynet"], dict):
                     easynet_data = device_json["easynet"]
-                    
-                    # Extract only the specified fields
-                    for field in ['hostname', 'ip', 'country', 'device_class', 'vendor']:
-                        device[field] = easynet_data.get(field, 'N/A')
+                    device.update(easynet_data)  # Add all easynet data to the device object
                 
                 # Ensure hostname exists
                 if "hostname" not in device:
@@ -51,7 +44,7 @@ def load_devices_data():
         return []
 
 def load_opstatus_data():
-    """Load operational status data from the 'operational_status' section in each device"""
+    """Load operational status data from the 'opstatus' section in each device"""
     try:
         opstatus_data = {}
         device_keys = redis_client.keys("device:*")
@@ -69,9 +62,9 @@ def load_opstatus_data():
                 if not hostname:
                     hostname = key.decode().split(':')[1]
                 
-                # Extract operational_status data if available
-                if hostname and "operational_status" in device_json:
-                    opstatus_data[hostname] = device_json["operational_status"]
+                # Extract opstatus data if available
+                if hostname and "opstatus" in device_json:
+                    opstatus_data[hostname] = device_json["opstatus"]
         
         return opstatus_data
     except Exception as e:
@@ -140,8 +133,7 @@ def display_device_details(device, opstatus_data):
             st.write(f"**Hostname:** {hostname}")
             st.write(f"**IP Address:** {device.get('ip', 'N/A')}")
             st.write(f"**Country:** {device.get('country', 'N/A')}")
-            st.write(f"**Device Class:** {device.get('device_class', 'N/A')}")
-            st.write(f"**Vendor:** {device.get('vendor', 'N/A')}")
+            st.write(f"**Vendor:** {device_opstatus.get('vendor', device.get('vendor', 'N/A'))}")
         
         with col2:
             st.write("##### Operational Status Details")
@@ -193,7 +185,6 @@ def ensure_columns_exist(df, columns):
 # Main view
 st.title('Operational Status')
 
-# Load data
 devices = load_devices_data()
 opstatus_data = load_opstatus_data()
 
@@ -201,12 +192,14 @@ if not devices:
     st.warning("No devices data available")
     st.stop()
     
-# Create DataFrame with only selected columns
 df = pd.DataFrame(devices)
 
 # Ensure required columns exist
-required_columns = ['hostname', 'ip', 'country', 'device_class', 'vendor']
+required_columns = ['hostname', 'country', 'device_class', 'ip']
 df = ensure_columns_exist(df, required_columns)
+
+# Add vendor from opstatus_data
+df['vendor'] = df['hostname'].apply(lambda x: opstatus_data.get(x, {}).get('vendor', 'N/A'))
 
 # Sidebar filters
 st.sidebar.header("Filters")
@@ -261,20 +254,14 @@ for col in operational_status_columns:
     filtered_df[col] = filtered_df[col + '_icon'] + ' ' + filtered_df[col]
     filtered_df = filtered_df.drop(col + '_icon', axis=1)
 
-# Define column order
+# Define column order with vendor added between device_class and SSH_port
 display_cols = [
     'hostname', 
     'ip', 
     'country', 
     'device_class',
-    'vendor', 
-    'SSH_port', 
-    'HTTPS_port', 
-    'SNMP', 
-    'remote_auth', 
-    'syslog', 
-    'Select'
-]
+    'vendor'
+] + operational_status_columns + ['Select']
 
 # Ensure all display columns exist in DataFrame
 for col in display_cols:
@@ -320,7 +307,7 @@ edited_df = st.data_editor(
         )
     },
     hide_index=True,
-    key='operational_status_editor'
+    key='compliance_status_editor'
 )
 
 # Display details for selected devices
