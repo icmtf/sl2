@@ -37,10 +37,10 @@ def load_devices_data():
                     
                     # Extract only the specified fields
                     for field in ['hostname', 'ip', 'country', 'device_class', 'vendor']:
-                        device[field] = easynet_data.get(field, 'N/A')
+                        device[field] = easynet_data.get(field, "")  # Use empty string instead of 'N/A'
                 
                 # Ensure hostname exists
-                if "hostname" not in device:
+                if not device.get("hostname"):
                     device["hostname"] = hostname_from_key
                 
                 devices.append(device)
@@ -97,11 +97,11 @@ def get_operational_status(hostname, opstatus_data, status_key):
             
             # Check status data format
             if isinstance(status_info, dict):
-                status = status_info.get('status', 'N/A')
+                status = status_info.get('status', '')  # Use empty string instead of 'N/A'
                 message = status_info.get('message', '')
             else:
                 # Status may be a direct value
-                status = status_info
+                status = status_info if isinstance(status_info, str) else ''
                 message = ''
                 
             # Clean the message
@@ -111,10 +111,10 @@ def get_operational_status(hostname, opstatus_data, status_key):
                     message = ''
             
             return status, message
-        return 'N/A', ''
+        return '', ''  # Use empty string instead of 'N/A'
     except Exception as e:
         print(f"Error in get_operational_status for {hostname}, {status_key}: {str(e)}")
-        return 'N/A', ''
+        return '', ''
 
 def get_colored_status(status):
     """Convert status to colored text"""
@@ -124,24 +124,30 @@ def get_colored_status(status):
         return '🔴'  
     elif status == 'NA':
         return '⚫'  
+    elif not status:  # Empty status
+        return ''
     else:
-        return '⚪'  
+        return '⚪'
 
 def display_device_details(device, opstatus_data):
     """Display detailed device information including operational status"""
     hostname = device['hostname']
     device_opstatus = opstatus_data.get(hostname, {})
 
-    with st.expander(f"🔍 {hostname} ({device.get('ip', 'N/A')})", expanded=False):
+    # Replace empty values with 'N/A' only for display in details
+    def display_value(value):
+        return value if value else 'N/A'
+
+    with st.expander(f"🔍 {hostname} ({display_value(device.get('ip'))})", expanded=False):
         col1, col2 = st.columns(2)
         
         with col1:
             st.write("##### Device Details")
             st.write(f"**Hostname:** {hostname}")
-            st.write(f"**IP Address:** {device.get('ip', 'N/A')}")
-            st.write(f"**Country:** {device.get('country', 'N/A')}")
-            st.write(f"**Device Class:** {device.get('device_class', 'N/A')}")
-            st.write(f"**Vendor:** {device.get('vendor', 'N/A')}")
+            st.write(f"**IP Address:** {display_value(device.get('ip'))}")
+            st.write(f"**Country:** {display_value(device.get('country'))}")
+            st.write(f"**Device Class:** {display_value(device.get('device_class'))}")
+            st.write(f"**Vendor:** {display_value(device.get('vendor'))}")
         
         with col2:
             st.write("##### Operational Status Details")
@@ -167,28 +173,21 @@ def display_device_details(device, opstatus_data):
                         
                         # Handle different data formats
                         if isinstance(status_info, dict):
-                            status = status_info.get('status', 'N/A')
+                            status = status_info.get('status', '')
                             message = status_info.get('message', '')
                             if isinstance(message, str):
                                 message = message.strip('"')
                                 if message in ['No message found', '', 'NA']:
                                     message = 'No additional information'
                         else:
-                            status = status_info if isinstance(status_info, str) else 'N/A'
+                            status = status_info if isinstance(status_info, str) else ''
                             message = 'No additional information'
                         
+                        status_display = display_value(status)
                         colored_status = get_colored_status(status)
-                        st.write(f"**{key}:** {colored_status} ({status}) _{message}_")
+                        st.write(f"**{key}:** {colored_status} ({status_display}) _{message}_")
             else:
                 st.warning("No operational status data available for this device.")
-
-# Ensure all columns exist before using them
-def ensure_columns_exist(df, columns):
-    df = df.copy()
-    for col in columns:
-        if col not in df.columns:
-            df[col] = 'N/A'
-    return df
 
 # Main view
 st.title('Operational Status')
@@ -204,15 +203,27 @@ if not devices:
 # Create DataFrame with only selected columns
 df = pd.DataFrame(devices)
 
-# Ensure required columns exist
-required_columns = ['hostname', 'ip', 'country', 'device_class', 'vendor']
-df = ensure_columns_exist(df, required_columns)
+# Define column order
+display_cols = [
+    'hostname', 
+    'ip', 
+    'country', 
+    'device_class',
+    'vendor', 
+    'SSH_port', 
+    'HTTPS_port', 
+    'SNMP', 
+    'remote_auth', 
+    'syslog', 
+    'Select'
+]
 
 # Sidebar filters
 st.sidebar.header("Filters")
 
+# Filter out None values from filter options
 # Country filter
-countries = sorted([c for c in df['country'].unique().tolist() if c is not None])
+countries = sorted([c for c in df['country'].unique().tolist() if c])
 selected_countries = st.sidebar.multiselect(
     "Select Countries",
     countries,
@@ -220,7 +231,7 @@ selected_countries = st.sidebar.multiselect(
 )
 
 # Device Class filter
-device_classes = sorted([d for d in df['device_class'].unique().tolist() if d is not None])
+device_classes = sorted([d for d in df['device_class'].unique().tolist() if d])
 selected_device_classes = st.sidebar.multiselect(
     "Select Device Classes",
     device_classes,
@@ -228,7 +239,7 @@ selected_device_classes = st.sidebar.multiselect(
 )
 
 # Vendor filter
-vendors = sorted([v for v in df['vendor'].unique().tolist() if v is not None])
+vendors = sorted([v for v in df['vendor'].unique().tolist() if v])
 selected_vendors = st.sidebar.multiselect(
     "Select Vendors",
     vendors,
@@ -258,28 +269,12 @@ for col in operational_status_columns:
         lambda x: get_operational_status(x, opstatus_data, col)[0]
     )
     filtered_df[col + '_icon'] = filtered_df[col].apply(get_colored_status)
-    filtered_df[col] = filtered_df[col + '_icon'] + ' ' + filtered_df[col]
+    # Only add space and status text if status is not empty
+    filtered_df[col] = filtered_df.apply(
+        lambda row: f"{row[col + '_icon']} {row[col]}" if row[col] else "", 
+        axis=1
+    )
     filtered_df = filtered_df.drop(col + '_icon', axis=1)
-
-# Define column order
-display_cols = [
-    'hostname', 
-    'ip', 
-    'country', 
-    'device_class',
-    'vendor', 
-    'SSH_port', 
-    'HTTPS_port', 
-    'SNMP', 
-    'remote_auth', 
-    'syslog', 
-    'Select'
-]
-
-# Ensure all display columns exist in DataFrame
-for col in display_cols:
-    if col not in filtered_df.columns and col != 'Select':
-        filtered_df[col] = 'N/A'
 
 # Add Select column for details
 filtered_df['Select'] = False
