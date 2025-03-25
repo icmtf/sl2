@@ -5,6 +5,7 @@ import json
 import boto3
 import logging
 import traceback
+from jsonschema import validate, ValidationError
 from dotenv import load_dotenv
 from opentelemetry import trace
 from opentelemetry.exporter.otlp.proto.grpc.trace_exporter import OTLPSpanExporter
@@ -72,21 +73,21 @@ s3_client = boto3.client(**client_kwargs)
 def test_redis_connection():
     """Test Redis connection and verify operations"""
     try:
-        # Testowy zapis i odczyt
+        # Test write and read
         test_key = "test:s3worker:connection"
         test_value = {"timestamp": time.time(), "status": "ok", "test": True}
         
-        # Zapisz testowe dane
+        # Write test data
         logger.info(f"Testing Redis connection by writing to {test_key}")
         redis_client.set(test_key, json.dumps(test_value))
         
-        # Odczytaj testowe dane
+        # Read test data
         read_value = redis_client.get(test_key)
         if read_value:
             parsed_value = json.loads(read_value)
             logger.info(f"Successfully read test data from Redis: {parsed_value}")
             
-            # Dodatkowa weryfikacja klucza test
+            # Additional verification of test key
             if parsed_value.get("test") == True:
                 logger.info("Redis write/read test passed!")
                 return True
@@ -196,6 +197,32 @@ def get_file_content(file_path):
             logger.error(f"Error getting file content for {file_path}: {str(e)}")
             return {}
 
+def load_template_schemas(s3_files):
+    """Load all template.json files into a dictionary for validation"""
+    with tracer.start_as_current_span("load_template_schemas"):
+        template_schemas = {}
+        logger.info("Loading template.json schemas for validation...")
+        
+        for template_path in s3_files['template_files']:
+            try:
+                # Extract device_class and vendor from path
+                parts = template_path.split('/')
+                if len(parts) >= 4:
+                    device_class = parts[1]
+                    vendor = parts[2]
+                    key = f"{device_class}/{vendor}"
+                    
+                    # Load schema
+                    schema = get_file_content(template_path)
+                    if schema:
+                        template_schemas[key] = schema
+                        logger.info(f"Loaded schema for {key}")
+            except Exception as e:
+                logger.error(f"Error loading schema from {template_path}: {str(e)}")
+        
+        logger.info(f"Loaded {len(template_schemas)} schema templates")
+        return template_schemas
+
 def process_device_files(devices, s3_files):
     """Process device files and update Redis"""
     with tracer.start_as_current_span("process_device_files"):
@@ -203,6 +230,9 @@ def process_device_files(devices, s3_files):
         files_processed = 0
         devices_updated = 0
         devices_with_missing_files = 0
+        
+        # Load template schemas for validation
+        template_schemas = load_template_schemas(s3_files)
 
         all_files_set = set(s3_files['all_files'])
         
@@ -233,6 +263,28 @@ def process_device_files(devices, s3_files):
                 logger.info(f"Found backup.json for {hostname}")
                 backup_data = get_file_content(backup_path)
                 if backup_data:
+                    # Check if schema exists for this device
+                    schema_key = f"{device_class}/{vendor}"
+                    has_schema = schema_key in template_schemas
+                    
+                    # First perform validation on the original data
+                    valid_schema = None
+                    if has_schema:
+                        try:
+                            # Validate original_data before adding schema and valid_schema keys
+                            validate(instance=backup_data, schema=template_schemas[schema_key])
+                            valid_schema = True
+                            logger.info(f"Backup data for {hostname} validated successfully against schema")
+                        except ValidationError as e:
+                            valid_schema = False
+                            logger.warning(f"Backup data for {hostname} failed schema validation: {str(e)}")
+                    else:
+                        logger.info(f"No schema available for {hostname} ({schema_key})")
+                    
+                    # Now add schema and valid_schema keys to backup_data object
+                    backup_data['schema'] = has_schema
+                    backup_data['valid_schema'] = valid_schema
+                    
                     updated_data['backup'] = backup_data
                     logger.info(f"Backup data loaded for {hostname}")
                 else:
@@ -300,7 +352,7 @@ def process_device_files(devices, s3_files):
                     pipe.set(redis_key, json.dumps(updated_data))
                     pipe.execute()
                 
-                # Określamy, które konkretnie dane zostały dodane
+                # Determine which specific data was added
                 added_data_types = []
                 for k in ['backup', 'config_validation', 'operational_status']:
                     if k in updated_data and updated_data[k] and updated_data[k] != {}: 
