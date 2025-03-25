@@ -246,7 +246,14 @@ def process_device_files(devices, s3_files):
             
             # Check config_validation.json
             if config_validation_path in all_files_set:
-                updated_data['config_validation'] = get_file_content(config_validation_path)
+                logger.info(f"Found config_validation.json for {hostname}")
+                config_validation_data = get_file_content(config_validation_path)
+                if config_validation_data:
+                    updated_data['config_validation'] = config_validation_data
+                    logger.info(f"Config validation data loaded for {hostname}")
+                else:
+                    logger.warning(f"Config validation data empty for {hostname} despite file existing at {config_validation_path}")
+                    updated_data['config_validation'] = {}
                 files_processed += 1
             else:
                 logger.warning(f"[{hostname}] config_validation.json missing at expected: {config_validation_path}")
@@ -255,7 +262,14 @@ def process_device_files(devices, s3_files):
             
             # Check operational_status.json
             if operational_status_path in all_files_set:
-                updated_data['operational_status'] = get_file_content(operational_status_path)
+                logger.info(f"Found operational_status.json for {hostname}")
+                operational_status_data = get_file_content(operational_status_path)
+                if operational_status_data:
+                    updated_data['operational_status'] = operational_status_data
+                    logger.info(f"Operational status data loaded for {hostname}")
+                else:
+                    logger.warning(f"Operational status data empty for {hostname} despite file existing at {operational_status_path}")
+                    updated_data['operational_status'] = {}
                 files_processed += 1
             else:
                 logger.warning(f"[{hostname}] operational_status.json missing at expected: {operational_status_path}")
@@ -286,15 +300,14 @@ def process_device_files(devices, s3_files):
                     pipe.set(redis_key, json.dumps(updated_data))
                     pipe.execute()
                 
-                # Określamy, czy faktycznie dodano nowe dane czy tylko puste obiekty
-                has_data = False
+                # Określamy, które konkretnie dane zostały dodane
+                added_data_types = []
                 for k in ['backup', 'config_validation', 'operational_status']:
                     if k in updated_data and updated_data[k] and updated_data[k] != {}: 
-                        has_data = True
-                        break
+                        added_data_types.append(k)
                         
-                if has_data:
-                    logger.info(f"Updated Redis entry for {hostname} with file data")
+                if added_data_types:
+                    logger.info(f"Updated Redis entry for {hostname} with {', '.join(added_data_types)}")
                 else:
                     logger.info(f"Updated Redis entry for {hostname} with empty keys")
                     
