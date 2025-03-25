@@ -135,6 +135,13 @@ def display_device_details(device, opstatus_data):
             st.write(f"**Country:** {device.get('country', 'N/A')}")
             st.write(f"**Device Class:** {device.get('device_class', 'N/A')}")
             st.write(f"**Vendor:** {device.get('vendor', 'N/A')}")
+            
+            # Dodajemy przycisk z popoverem dla operational_status.json
+            if hostname in opstatus_data and opstatus_data[hostname]:
+                with st.popover("📊 operational_status.json"):
+                    st.json(opstatus_data[hostname])
+            else:
+                st.button("📊 operational_status.json", disabled=True, help="No operational_status.json available")
         
         with col2:
             st.write("##### Operational Status Details")
@@ -147,14 +154,14 @@ def display_device_details(device, opstatus_data):
                 st.write(f"**Last Updated:** {last_update}")
             else:
                 # Check if data is directly in device_opstatus
-                operational_keys = ['SSH_port', 'HTTPS_port', 'SNMP', 'remote_auth', 'syslog']
+                operational_keys = ['SSH_port', 'HTTPS_port', 'SNMP', 'remote_auth', 'Syslog']
                 if any(key in device_opstatus for key in operational_keys):
                     operational_status = device_opstatus
                     last_update = device_opstatus.get('date', 'N/A')
                     st.write(f"**Last Updated:** {last_update}")
             
             if operational_status:
-                for key in ['SSH_port', 'HTTPS_port', 'SNMP', 'remote_auth', 'syslog']:
+                for key in ['SSH_port', 'HTTPS_port', 'SNMP', 'remote_auth', 'Syslog']:
                     if key in operational_status:
                         status_info = operational_status[key]
                         
