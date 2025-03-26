@@ -113,10 +113,10 @@ def display_device_details(device, backups):
             if 'backup_json_data' in backup_data:
                 display_data = backup_data.get("backup_json_data", {})
             
-            with st.popover("📄 backup.json"):
+            with st.popover("🧩 backup.json"):
                 st.json(display_data)
         else:
-            st.button("📄 backup.json", disabled=True, help="No backup.json available")
+            st.button("🧩 backup.json", disabled=True, help="No backup.json available")
 
 def clean_df_values(df, columns):
     """Replace None/NaN values with 'Unknown' in specified columns"""

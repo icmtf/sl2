@@ -138,7 +138,7 @@ def display_device_details(device, opstatus_data):
             
             # Dodajemy przycisk z popoverem dla operational_status.json
             if hostname in opstatus_data and opstatus_data[hostname]:
-                with st.popover("📊 operational_status.json"):
+                with st.popover("🧩 operational_status.json"):
                     st.json(opstatus_data[hostname])
             else:
                 st.button("📊 operational_status.json", disabled=True, help="No operational_status.json available")

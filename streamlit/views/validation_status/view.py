@@ -103,7 +103,7 @@ else:
             else:
                 st.warning("Cant parse compliance info")
 
-            with st.popover("JSON config validaton results"):
+            with st.popover("🧩 JSON config validaton results"):
                 st.write(f"Device selected is {hostname}")
                 st.json(data)
         else:
