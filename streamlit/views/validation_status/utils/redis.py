@@ -66,9 +66,12 @@ def load_compliance_data():
                 if not hostname:
                     hostname = key.decode().split(':')[1]
                 
-                # Extract validation data if available
-                if hostname and "validation" in device_json:
-                    compliance_data[hostname] = device_json["validation"]
+                # Extract validation data if available - szukamy pod właściwym kluczem
+                if hostname and "config_validation" in device_json:
+                    # Tworzymy sztuczną strukturę, której oczekuje kod
+                    compliance_data[hostname] = {
+                        "validation_data": device_json["config_validation"]
+                    }
         
         return compliance_data
     except Exception as e:
